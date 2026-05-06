@@ -1,6 +1,6 @@
 async function loginWithCredentials() {
   const region = document.getElementById('region').value;
-  const clientId = document.getElementById('implicitClientId').value; // Usando el mismo campo
+  const clientId = document.getElementById('implicitClientId').value;
   const clientSecret = document.getElementById('clientSecret').value;
 
   if (!clientId || !clientSecret) {
@@ -8,27 +8,42 @@ async function loginWithCredentials() {
     return;
   }
 
+  const btn = document.querySelector('.btn-credentials');
+  const originalText = btn.textContent;
+  btn.textContent = 'Autenticando...';
+  btn.disabled = true;
+
   try {
-    // Llamamos a tu backend para obtener el token
-    const response = await fetch('http://localhost:3000/token', {
+    // Usamos 127.0.0.1 para evitar problemas de resolución de nombres en algunos navegadores
+    const response = await fetch('http://127.0.0.1:3000/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ region, clientId, clientSecret })
     });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error en el servidor local');
+    }
+
     const data = await response.json();
 
     if (data.access_token) {
-      // Guardamos todo igual que antes para no romper grabaciones.html ni app.html
       sessionStorage.setItem('gc_token', data.access_token);
       sessionStorage.setItem('gc_region', region);
       sessionStorage.setItem('gc_method', 'credentials');
       
+      // Guardar el Client ID para la próxima vez
+      localStorage.setItem('gc_saved_client_id', clientId);
+      localStorage.setItem('gc_saved_region', region);
+
       window.location.href = 'app.html';
-    } else {
-      showError('Error de autenticación: ' + (data.error || 'Verifica tus credenciales'));
     }
   } catch (err) {
-    showError('No se pudo conectar con el servidor Node.js');
+    console.error('Error de login:', err);
+    showError('Error: ' + err.message + '. Asegúrate de que server.js esté corriendo localmente.');
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
   }
 }
