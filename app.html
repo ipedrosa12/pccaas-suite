@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESMT Automation Suite · Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #FF5F00;
+      --orange-dim: #cc4c00;
+      --dark: #0d0d0f;
+      --panel: #141418;
+      --panel2: #1a1a20;
+      --border: rgba(255,255,255,0.07);
+      --text: #e8e8ec;
+      --muted: #6b6b7a;
+      --green: #00e5a0;
+      --blue: #4f9fff;
+      --yellow: #f5c542;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 40% at 0% 0%, rgba(255,95,0,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 30% at 100% 100%, rgba(0,229,160,0.04) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── TOPBAR ─────────────────────────────────────────────── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 60px;
+      background: rgba(13,13,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 32px; height: 32px;
+      background: var(--orange);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; font-weight: 700; color: white;
+    }
+
+    .brand-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .user-avatar {
+      width: 22px; height: 22px;
+      background: var(--orange);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: white;
+    }
+
+    .session-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--green);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .session-badge::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .btn-logout {
+      padding: 6px 14px;
+      background: transparent;
+      border: 1px solid rgba(255,79,79,0.3);
+      border-radius: 6px;
+      color: rgba(255,100,100,0.8);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover {
+      background: rgba(255,79,79,0.1);
+      border-color: rgba(255,79,79,0.5);
+      color: #ff7070;
+    }
+
+    /* ── CONTENIDO ──────────────────────────────────────────── */
+    .main {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 36px 28px 60px;
+    }
+
+    .page-header {
+      margin-bottom: 32px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(16px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .page-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 22px; font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .page-sub {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    /* ── INFO SESSION BANNER ─────────────────────────────────── */
+    .session-banner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 20px;
+      background: rgba(0,229,160,0.05);
+      border: 1px solid rgba(0,229,160,0.15);
+      border-radius: 10px;
+      margin-bottom: 32px;
+      animation: fadeUp 0.5s 0.1s ease both;
+      flex-wrap: wrap;
+    }
+
+    .session-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session-label {
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .session-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: var(--green);
+    }
+
+    .session-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+    }
+
+    /* ── GRID DE TOOLS ───────────────────────────────────────── */
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-left: 2px;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .tool-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .tool-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent-color, transparent);
+      transition: opacity 0.2s;
+      opacity: 0;
+    }
+
+    .tool-card:hover {
+      border-color: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .tool-card:hover::before { opacity: 1; }
+
+    .tool-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 14px;
+    }
+
+    .tool-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px; font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .tool-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .tool-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .tool-status {
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      font-family: 'Space Mono', monospace;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .tool-status.ready {
+      background: rgba(0,229,160,0.1);
+      color: var(--green);
+    }
+
+    .tool-status.soon {
+      background: rgba(245,197,66,0.1);
+      color: var(--yellow);
+    }
+
+    .tool-status.wip {
+      background: rgba(79,159,255,0.1);
+      color: var(--blue);
+    }
+
+    .tool-arrow {
+      color: var(--muted);
+      font-size: 14px;
+      transition: color 0.2s, transform 0.2s;
+    }
+
+    .tool-card:hover .tool-arrow {
+      color: var(--text);
+      transform: translateX(3px);
+    }
+
+    /* ── TOKEN INSPECTOR ─────────────────────────────────────── */
+    .inspector {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      animation: fadeUp 0.5s 0.3s ease both;
+    }
+
+    .inspector-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px; font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .token-display {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: rgba(0,229,160,0.7);
+      word-break: break-all;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      padding: 4px 10px;
+      background: rgba(255,95,0,0.15);
+      border: 1px solid rgba(255,95,0,0.3);
+      border-radius: 4px;
+      color: var(--orange);
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { background: rgba(255,95,0,0.25); }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .meta-item {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .meta-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .meta-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    /* Modal placeholder */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 420px;
+      width: 90%;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    .modal-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .modal-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 22px;
+    }
+
+    .modal-close {
+      padding: 10px 20px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-close:hover { border-color: rgba(255,255,255,0.15); }
+
+    code {
+      font-family: 'Space Mono', monospace;
+      background: var(--panel2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--orange);
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-logo">ES</div>
+    <div class="brand-name">ESMT Suite</div>
+  </div>
+  <div class="topbar-right">
+    <div class="session-badge" id="sessionBadge">SESIÓN ACTIVA</div>
+    <div class="user-chip">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span id="userName">Cargando...</span>
+    </div>
+    <button class="btn-logout" onclick="logout()">SALIR</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <div class="page-header">
+    <div class="page-title">Panel de Herramientas</div>
+    <div class="page-sub" id="pageSubtitle">Conectado a Genesys Cloud · Organización cargando...</div>
+  </div>
+
+  <!-- Session Banner -->
+  <div class="session-banner">
+    <div class="session-item">
+      <div class="session-label">Organización</div>
+      <div class="session-value" id="infoOrg">—</div>
+    </div>
+    <div class="session-divider"></div>
+    <div class="session-item">
+      <div class="session-label">Región</div>
+      <div class="session-value" id="infoRegion">—</div>
+    </div>
+    <div class="session-divider"></div>
+    <div class="session-item">
+      <div class="session-label">Usuario</div>
+      <div class="session-value" id="infoUser">—</div>
+    </div>
+    <div class="session-divider"></div>
+    <div class="session-item">
+      <div class="session-label">Expira en</div>
+      <div class="session-value" id="infoExpiry">—</div>
+    </div>
+  </div>
+
+  <!-- Tools Grid -->
+  <div class="section-label">Herramientas disponibles</div>
+  <div class="tools-grid">
+
+    <div class="tool-card" style="--accent-color: #00e5a0; animation-delay: 0.05s" onclick="openTool('wrapup')">
+      <div class="tool-icon" style="background:rgba(0,229,160,0.1)">📋</div>
+      <div class="tool-name">Wrap-up Codes</div>
+      <div class="tool-desc">Crea, actualiza y elimina códigos de cierre masivamente vía API. Importa desde CSV.</div>
+      <div class="tool-footer">
+        <span class="tool-status ready">LISTO</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card" style="--accent-color: #4f9fff; animation-delay: 0.1s" onclick="window.location.href='grabaciones.html'">
+      <div class="tool-icon" style="background:rgba(79,159,255,0.1)">🎙️</div>
+      <div class="tool-name">Grabaciones</div>
+      <div class="tool-desc">Descarga y exporta grabaciones por rango de fecha, cola o agente. Batch processing.</div>
+      <div class="tool-footer">
+        <span class="tool-status ready">LISTO</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card" style="--accent-color: #FF5F00; animation-delay: 0.15s" onclick="openTool('roles')">
+      <div class="tool-icon" style="background:rgba(255,95,0,0.1)">🔐</div>
+      <div class="tool-name">Roles & Permisos</div>
+      <div class="tool-desc">Asignación masiva de roles por división. Bulk add via <code>/bulkadd</code>.</div>
+      <div class="tool-footer">
+        <span class="tool-status ready">LISTO</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card" style="--accent-color: #f5c542; animation-delay: 0.2s" onclick="openTool('wfm')">
+      <div class="tool-icon" style="background:rgba(245,197,66,0.1)">📅</div>
+      <div class="tool-name">WFM · Workforce Mgmt</div>
+      <div class="tool-desc">Configuración de planes de trabajo, festivos y turnos para Business Units.</div>
+      <div class="tool-footer">
+        <span class="tool-status wip">EN PROGRESO</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card" style="--accent-color: #b94fff; animation-delay: 0.25s" onclick="openTool('queues')">
+      <div class="tool-icon" style="background:rgba(185,79,255,0.1)">🔀</div>
+      <div class="tool-name">Routing & Queues</div>
+      <div class="tool-desc">Actualización de configuración de colas, habilidades y prioridades de enrutamiento.</div>
+      <div class="tool-footer">
+        <span class="tool-status soon">PRÓXIMO</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="tool-card" style="--accent-color: #ff4f7b; animation-delay: 0.3s" onclick="openTool('users')">
+      <div class="tool-icon" style="background:rgba(255,79,123,0.1)">👥</div>
+      <div class="tool-name">Gestión de Usuarios</div>
+      <div class="tool-desc">Creación masiva de usuarios, importación y sincronización desde directorio.</div>
+      <div class="tool-footer">
+        <span class="tool-status soon">PRÓXIMO</span>
+        <span class="tool-arrow">→</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Token Inspector -->
+  <div class="section-label">Inspector de sesión</div>
+  <div class="inspector">
+    <div class="inspector-title">
+      🔐 Token OAuth activo
+    </div>
+    <div class="token-display" id="tokenDisplay">
+      Cargando token...
+      <button class="copy-btn" onclick="copyToken()">COPIAR</button>
+    </div>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <div class="meta-label">Tipo</div>
+        <div class="meta-value">Bearer</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Método</div>
+        <div class="meta-value" id="metaMethod">Implicit</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Estado</div>
+        <div class="meta-value" style="color:var(--green)">✓ Válido</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Herramienta</div>
+    <div class="modal-desc" id="modalDesc">Descripción</div>
+    <button class="modal-close" onclick="closeModal()">CERRAR</button>
+  </div>
+</div>
+
+<script>
+  // ─── CARGAR SESIÓN ─────────────────────────────────────────────────────────
+  function loadSession() {
+    const token    = sessionStorage.getItem('gc_access_token');
+    const region   = sessionStorage.getItem('gc_region')    || '—';
+    const userName = sessionStorage.getItem('gc_user_name') || 'Usuario';
+    const orgName  = sessionStorage.getItem('gc_org_name')  || '—';
+    const expires  = sessionStorage.getItem('gc_token_expires');
+    const method   = sessionStorage.getItem('gc_method')    || 'implicit';
+
+    // Si no hay token, redirigir al login
+    if (!token) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    // Verificar expiración
+    if (expires && Date.now() > parseInt(expires)) {
+      alert('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+      return;
+    }
+
+    // Calcular tiempo restante
+    let expiryText = '—';
+    if (expires) {
+      const msLeft  = parseInt(expires) - Date.now();
+      const hoursLeft = Math.floor(msLeft / 3600000);
+      const minsLeft  = Math.floor((msLeft % 3600000) / 60000);
+      expiryText = `${hoursLeft}h ${minsLeft}m`;
+    }
+
+    // Actualizar UI
+    const initials = userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    document.getElementById('userAvatar').textContent      = initials;
+    document.getElementById('userName').textContent        = userName.split(' ')[0];
+    document.getElementById('pageSubtitle').textContent    = `Conectado a Genesys Cloud · ${orgName}`;
+
+    document.getElementById('infoOrg').textContent         = orgName;
+    document.getElementById('infoRegion').textContent      = region;
+    document.getElementById('infoUser').textContent        = userName.split(' ')[0];
+    document.getElementById('infoExpiry').textContent      = expiryText;
+    document.getElementById('metaMethod').textContent      = method === 'implicit' ? 'Implicit Grant' : 'Client Credentials';
+
+    // Token preview
+    const preview = token.substring(0, 28) + '...' + token.substring(token.length - 12);
+    const display = document.getElementById('tokenDisplay');
+    display.innerHTML = preview + `<button class="copy-btn" onclick="copyToken()">COPIAR</button>`;
+  }
+
+  // ─── COPIAR TOKEN ──────────────────────────────────────────────────────────
+  function copyToken() {
+    const token = sessionStorage.getItem('gc_access_token');
+    if (token) {
+      navigator.clipboard.writeText(token).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✓ OK';
+        setTimeout(() => btn.textContent = 'COPIAR', 2000);
+      });
+    }
+  }
+
+  // ─── LOGOUT ────────────────────────────────────────────────────────────────
+  function logout() {
+    const region   = sessionStorage.getItem('gc_region')    || 'mypurecloud.com';
+    const clientId = sessionStorage.getItem('gc_client_id') || '';
+    sessionStorage.clear();
+
+    // Redirigir al logout de Genesys (opcional — invalida la sesión en Genesys)
+    // window.location.href = `https://login.${region}/logout?client_id=${clientId}&redirect_uri=${encodeURIComponent('http://127.0.0.1:5500/index.html')}`;
+
+    window.location.href = 'index.html';
+  }
+
+  // ─── MODAL DE HERRAMIENTAS ────────────────────────────────────────────────
+  const toolInfo = {
+    wrapup: {
+      title: '📋 Wrap-up Codes',
+      desc:  'Tu script Node.js de creación de wrap-up codes está listo para conectarse aquí. El token de sesión ya está disponible en sessionStorage como gc_access_token. El siguiente paso es hacer fetch() a POST /api/v2/routing/wrapupcodes pasando el Bearer token desde la sesión activa.'
+    },
+    recordings: {
+      title: '🎙️ Grabaciones',
+      desc:  'Módulo para descarga masiva de grabaciones. Se conectará a GET /api/v2/recording/mediaretentionpolicies y POST /api/v2/conversations/{conversationId}/recordings/{recordingId}. Próxima implementación.'
+    },
+    roles: {
+      title: '🔐 Roles & Permisos',
+      desc:  'Tu script de bulkadd está preparado. Se usará POST /api/v2/authorization/subjects/{userId}/bulkadd con el token activo de esta sesión. Sin necesidad de archivo .env.'
+    },
+    wfm: {
+      title: '📅 WFM · Workforce Management',
+      desc:  'Módulo de configuración de Business Units, planes de trabajo y días festivos. En desarrollo activo. Conecta con el API de WFM de Genesys Cloud para automatizar lo que hoy se hace manualmente en la UI.'
+    },
+    queues: {
+      title: '🔀 Routing & Queues',
+      desc:  'Gestión y actualización de configuración de colas de enrutamiento. Próximamente disponible en la suite.'
+    },
+    users: {
+      title: '👥 Gestión de Usuarios',
+      desc:  'Creación e importación masiva de usuarios desde CSV. Próximamente disponible.'
+    }
+  };
+
+  function openTool(id) {
+    const info = toolInfo[id];
+    if (!info) return;
+    document.getElementById('modalTitle').textContent = info.title;
+    document.getElementById('modalDesc').textContent  = info.desc;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal(event) {
+    if (!event || event.target.id === 'modalOverlay' || event.target.classList.contains('modal-close')) {
+      document.getElementById('modalOverlay').classList.remove('open');
+    }
+  }
+
+  // ─── ARRANCAR ─────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', loadSession);
+</script>
+</body>
+</html>

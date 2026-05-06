@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grabaciones · ESMT Suite</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #FF5F00;
+      --orange-dim: #cc4c00;
+      --dark: #0d0d0f;
+      --panel: #141418;
+      --panel2: #1a1a20;
+      --border: rgba(255,255,255,0.07);
+      --text: #e8e8ec;
+      --muted: #6b6b7a;
+      --green: #00e5a0;
+      --blue: #4f9fff;
+      --red: #ff4f4f;
+      --yellow: #f5c542;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 10% 20%, rgba(255,95,0,0.06) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 30% at 90% 80%, rgba(79,159,255,0.04) 0%, transparent 55%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; height: 56px;
+      background: rgba(13,13,15,0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .back-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+    .page-badge {
+      display: flex; align-items: center; gap: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; font-weight: 700;
+      color: var(--text);
+    }
+
+    .badge-icon {
+      width: 28px; height: 28px;
+      background: rgba(79,159,255,0.15);
+      border: 1px solid rgba(79,159,255,0.3);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .session-info {
+      font-size: 11px; color: var(--muted);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .session-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green);
+      margin-right: 5px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .main {
+      position: relative; z-index: 1;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 32px 24px 60px;
+    }
+
+    .page-header {
+      margin-bottom: 28px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(14px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .page-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 20px; font-weight: 700; color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .page-sub { font-size: 13px; color: var(--muted); }
+
+    .mode-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+      animation: fadeUp 0.5s 0.05s ease both;
+    }
+
+    .mode-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mode-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent, transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .mode-card.active {
+      border-color: rgba(255,255,255,0.12);
+      background: var(--panel2);
+    }
+
+    .mode-card.active::before { opacity: 1; }
+
+    .mode-card:hover { border-color: rgba(255,255,255,0.1); }
+
+    .mode-icon { font-size: 22px; margin-bottom: 10px; }
+
+    .mode-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; font-weight: 700; color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .mode-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    .mode-card[data-mode="listado"] { --accent: var(--blue); }
+    .mode-card[data-mode="bulk"]    { --accent: var(--orange); }
+
+    .input-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.5s 0.1s ease both;
+    }
+
+    .panel-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; font-weight: 700; color: var(--text);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 120px;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 3px rgba(255,95,0,0.1);
+    }
+
+    .input-actions {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--orange);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--orange-dim); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-secondary:hover { color: var(--text); }
+
+    .ids-count {
+      font-size: 11px; color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      margin-left: auto;
+    }
+
+    .progress-bar-wrap {
+      background: var(--panel2);
+      border-radius: 4px;
+      height: 4px;
+      margin-top: 14px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--orange);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .log-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .log-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .log-body {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 2;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .log-body .ok   { color: var(--green); }
+    .log-body .fail { color: var(--red); }
+    .log-body .info { color: var(--orange); }
+    .log-body .warn { color: var(--yellow); }
+
+    .results-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .results-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px; font-weight: 700; color: #fff;
+    }
+
+    .results-table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    th {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .btn-download {
+      padding: 5px 12px;
+      background: rgba(0,229,160,0.1);
+      border: 1px solid rgba(0,229,160,0.25);
+      border-radius: 5px;
+      color: var(--green);
+      cursor: pointer;
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      margin: 2px;
+    }
+    .btn-download:hover { background: rgba(0,229,160,0.2); }
+    .btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .summary-bar {
+      display: flex;
+      gap: 20px;
+      padding: 14px 20px;
+      background: rgba(0,229,160,0.04);
+      border: 1px solid rgba(0,229,160,0.1);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .summary-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .summary-value { font-family: 'Space Mono', monospace; font-weight: 700; }
+    .summary-value.green { color: var(--green); }
+    .summary-value.red { color: var(--red); }
+    .summary-value.orange { color: var(--orange); }
+
+    .btn.loading .btn-label { display: none; }
+    .btn.loading .spinner { display: inline-block; }
+    .spinner {
+      display: none;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="app.html" class="back-btn">← Panel</a>
+    <div class="page-badge">
+      <div class="badge-icon">🎙️</div>
+      Grabaciones
+    </div>
+  </div>
+  <div class="session-info">
+    <span class="session-dot"></span>
+    <span id="sessionUser">Cargando...</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-header">
+    <div class="page-title">Descarga de Grabaciones</div>
+    <div class="page-sub">Ingresa los IDs de conversación para descargar la grabación completa (ambos lados mezclados) en un solo archivo.</div>
+  </div>
+
+  <div class="mode-selector">
+    <div class="mode-card active" data-mode="listado" onclick="setMode('listado')">
+      <div class="mode-icon">📋</div>
+      <div class="mode-title">GENERAR LISTADO</div>
+      <div class="mode-desc">Muestra una tabla con todas las grabaciones y un botón para descargar el archivo completo (mezcla automática).</div>
+    </div>
+    <div class="mode-card" data-mode="bulk" onclick="setMode('bulk')">
+      <div class="mode-icon">⬇️</div>
+      <div class="mode-title">DESCARGAR TODO</div>
+      <div class="mode-desc">Descarga automáticamente todas las grabaciones mezcladas en secuencia.</div>
+    </div>
+  </div>
+
+  <div class="input-panel">
+    <div class="panel-title">IDs de Conversación — uno por línea</div>
+    <textarea id="idsInput" placeholder="Pega aquí los IDs de conversación, uno por línea..."></textarea>
+    <div class="input-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('filePicker').click()">📂 Cargar .txt</button>
+      <input type="file" id="filePicker" accept=".txt" style="display:none" onchange="loadFile(event)">
+      <button class="btn btn-secondary" onclick="clearAll()">🗑 Limpiar</button>
+      <button class="btn btn-primary" id="btnProcesar" onclick="procesar()">
+        <span class="btn-label">▶ PROCESAR</span>
+        <div class="spinner"></div>
+      </button>
+      <div class="ids-count" id="idsCount"></div>
+    </div>
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <div class="summary-bar" id="summaryBar">
+    <div class="summary-item">
+      <div class="summary-label">Total</div>
+      <div class="summary-value orange" id="sumTotal">0</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Exitosas</div>
+      <div class="summary-value green" id="sumOk">0</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Sin grabación</div>
+      <div class="summary-value" id="sumNoRec">0</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Errores</div>
+      <div class="summary-value red" id="sumErr">0</div>
+    </div>
+  </div>
+
+  <div class="log-panel" id="logPanel">
+    <div class="log-title">▶ Log de progreso</div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+
+  <div class="results-panel" id="resultsPanel">
+    <div class="results-header">
+      <div class="results-title">🎙️ Grabaciones encontradas</div>
+      <button class="btn btn-secondary" onclick="exportarCSV()">📄 Exportar CSV</button>
+    </div>
+    <div class="results-table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Fecha</th><th>Dirección</th><th>Teléfono</th><th>ID Conversación</th><th>Duración</th><th>Estado</th><th>Acción</th></tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// CONFIGURACIÓN Y UTILIDADES
+// =============================================================================
+let currentMode = 'listado';
+let procesando = false;
+let recordingsList = [];
+
+function getToken() { return sessionStorage.getItem('gc_access_token'); }
+function getRegion() { return sessionStorage.getItem('gc_region') || 'mypurecloud.com'; }
+
+function getIds() {
+  return document.getElementById('idsInput').value
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+}
+
+function updateCount() {
+  const ids = getIds();
+  document.getElementById('idsCount').innerHTML = ids.length ? `<strong>${ids.length}</strong> ID${ids.length > 1 ? 's' : ''} detectado${ids.length > 1 ? 's' : ''}` : '';
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+}
+
+function clearAll() {
+  document.getElementById('idsInput').value = '';
+  document.getElementById('logPanel').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'none';
+  document.getElementById('summaryBar').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('logBody').innerHTML = '';
+  document.getElementById('resultsBody').innerHTML = '';
+  recordingsList = [];
+  updateCount();
+}
+
+function loadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('idsInput').value = e.target.result;
+    updateCount();
+  };
+  reader.readAsText(file);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function log(msg, type = 'info') {
+  const logBody = document.getElementById('logBody');
+  let prefix = '▶';
+  if (type === 'ok') prefix = '✓';
+  else if (type === 'fail') prefix = '✗';
+  else if (type === 'warn') prefix = '⚠';
+  logBody.innerHTML += `<span class="${type}">${prefix}</span> ${msg}<br>`;
+  logBody.scrollTop = logBody.scrollHeight;
+}
+
+function setProgress(current, total) {
+  const pct = total > 0 ? (current / total) * 100 : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+async function apiRequest(endpoint) {
+  const region = getRegion();
+  const token = getToken();
+  const res = await fetch(`https://api.${region}/api/v2${endpoint}`, {
+    headers: { 
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!res.ok) throw new Error(`API ${res.status} en ${endpoint}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
+}
+
+// =============================================================================
+// OBTENER RECORDING ID Y DESCARGAR CON BEARER TOKEN
+// Usa ?formatId=MP3 igual que la UI de Genesys — devuelve ambos canales mezclados
+// =============================================================================
+async function obtenerRecordingId(convId) {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 8000;
+  let metas = [];
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    metas = await apiRequest(`/conversations/${convId}/recordings`);
+    if (Array.isArray(metas) && metas.length > 0) break;
+    if (attempt < MAX_RETRIES) {
+      log(`Metadatos no listos. Reintentando (${attempt}/${MAX_RETRIES})...`, 'warn');
+      await sleep(RETRY_DELAY);
+    }
+  }
+
+  if (!Array.isArray(metas) || metas.length === 0) {
+    throw new Error('No se encontraron metadatos de grabación');
+  }
+
+  // Tomar el primer recordingId válido
+  for (const meta of metas) {
+    if (meta.id) return meta.id;
+  }
+  throw new Error('No se encontró un ID de grabación válido');
+}
+
+async function descargarConBearer(convId, recordingId, fileName) {
+  const region = getRegion();
+  const token  = getToken();
+
+  // PASO 1: Obtener metadata del recording para conseguir las URIs pre-firmadas
+  log(`Obteniendo URLs de descarga...`);
+  const metaRes = await fetch(
+    `https://api.${region}/api/v2/conversations/${convId}/recordings/${recordingId}`,
+    { headers: { 'Authorization': `Bearer ${token}` } }
+  );
+  if (!metaRes.ok) throw new Error(`Error obteniendo metadata: ${metaRes.status}`);
+  const info = await metaRes.json();
+
+  // PASO 2: Intentar descarga MP3 directamente desde la API (ambos canales mezclados)
+  log(`Intentando descarga MP3 con Bearer token...`);
+  const mp3Res = await fetch(
+    `https://api.${region}/api/v2/conversations/${convId}/recordings/${recordingId}?formatId=MP3`,
+    { headers: { 'Authorization': `Bearer ${token}` } }
+  );
+
+  if (mp3Res.ok) {
+    const ct = mp3Res.headers.get('content-type') || '';
+    const blob = await mp3Res.blob();
+    // Verificar que es audio y no JSON
+    if (!ct.includes('json') && blob.size > 5000) {
+      log(`✓ MP3 recibido (${Math.round(blob.size/1024)}KB). Guardando...`);
+      triggerDownload(URL.createObjectURL(blob), `${fileName}.mp3`);
+      return 'mp3';
+    }
+  }
+
+  // PASO 3: Fallback — usar URIs pre-firmadas de la metadata
+  log(`API no devolvió binario. Usando URIs pre-firmadas...`, 'warn');
+
+  const uri1 = info.mediaUris?.['1']?.mediaUri;
+  const uri2 = info.mediaUris?.['2']?.mediaUri;
+  const uri0 = info.mediaUris?.['0']?.mediaUri || info.mediaUris?.['mixed']?.mediaUri;
+  const uriDirect = info.mediaUri;
+
+  // Si hay un canal combinado (0 o mixed), descargarlo directamente
+  if (uri0) {
+    log(`Descargando canal combinado...`);
+    const r = await fetch(uri0);
+    if (r.ok) {
+      const b = await r.blob();
+      triggerDownload(URL.createObjectURL(b), `${fileName}.webm`);
+      return 'webm';
+    }
+  }
+
+  // Si hay dos canales separados, mezclarlos con Web Audio API
+  if (uri1 && uri2) {
+    log(`Mezclando canal agente + cliente con Web Audio API...`);
+    const [b1, b2] = await Promise.all([
+      fetch(uri1).then(r => { if (!r.ok) throw new Error('Error canal 1'); return r.blob(); }),
+      fetch(uri2).then(r => { if (!r.ok) throw new Error('Error canal 2'); return r.blob(); })
+    ]);
+    await mezclarCanales(b1, b2, fileName);
+    return 'wav';
+  }
+
+  // Si solo hay un canal, descargarlo
+  const uriFallback = uri1 || uri2 || uriDirect;
+  if (uriFallback) {
+    log(`Descargando canal disponible...`, 'warn');
+    const r = await fetch(uriFallback);
+    if (r.ok) {
+      const b = await r.blob();
+      triggerDownload(URL.createObjectURL(b), `${fileName}.webm`);
+      return 'webm';
+    }
+  }
+
+  throw new Error('No se pudo obtener la grabación por ningún método');
+}
+
+function triggerDownload(blobUrl, fullFileName) {
+  const a    = document.createElement('a');
+  a.href     = blobUrl;
+  a.download = fullFileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+}
+
+// =============================================================================
+// MEZCLA DE DOS CANALES (agente izquierdo, cliente derecho) → WAV estéreo
+// =============================================================================
+async function mezclarCanales(agentBlob, customerBlob, fileName) {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioContext = new AudioContext();
+  
+  const [agentBuffer, customerBuffer] = await Promise.all([
+    audioContext.decodeAudioData(await agentBlob.arrayBuffer()),
+    audioContext.decodeAudioData(await customerBlob.arrayBuffer())
+  ]);
+  
+  const maxDuration = Math.max(agentBuffer.duration, customerBuffer.duration);
+  const sampleRate = 16000;
+  const samples = Math.ceil(maxDuration * sampleRate);
+  const mergedBuffer = audioContext.createBuffer(2, samples, sampleRate);
+  
+  // Canal izquierdo (agente)
+  const left = mergedBuffer.getChannelData(0);
+  const agentSource = agentBuffer.getChannelData(0);
+  const agentRatio = agentBuffer.sampleRate / sampleRate;
+  for (let i = 0; i < samples; i++) {
+    const srcIndex = i * agentRatio;
+    const idx1 = Math.floor(srcIndex);
+    const idx2 = Math.min(idx1 + 1, agentSource.length - 1);
+    const frac = srcIndex - idx1;
+    left[i] = (agentSource[idx1] * (1 - frac) + agentSource[idx2] * frac) * 0.8;
+  }
+  
+  // Canal derecho (cliente)
+  const right = mergedBuffer.getChannelData(1);
+  const customerSource = customerBuffer.getChannelData(0);
+  const customerRatio = customerBuffer.sampleRate / sampleRate;
+  for (let i = 0; i < samples; i++) {
+    const srcIndex = i * customerRatio;
+    const idx1 = Math.floor(srcIndex);
+    const idx2 = Math.min(idx1 + 1, customerSource.length - 1);
+    const frac = srcIndex - idx1;
+    right[i] = (customerSource[idx1] * (1 - frac) + customerSource[idx2] * frac) * 0.8;
+  }
+  
+  const wavBlob = bufferToWav(mergedBuffer);
+  const url = URL.createObjectURL(wavBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${fileName}_completo.wav`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return true;
+}
+
+// Convertir AudioBuffer a WAV (PCM 16 bits)
+function bufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bitDepth = 16;
+  const samples = buffer.length;
+  const dataLength = samples * numChannels * (bitDepth / 8);
+  const bufferLength = 44 + dataLength;
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+  
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, bufferLength - 8, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+  view.setUint16(32, numChannels * (bitDepth / 8), true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+  
+  let offset = 44;
+  for (let i = 0; i < samples; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const sample = buffer.getChannelData(ch)[i] || 0;
+      const intSample = Math.max(-1, Math.min(1, sample)) < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      view.setInt16(offset, intSample, true);
+      offset += 2;
+    }
+  }
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+}
+
+// =============================================================================
+// PROCESAR UNA GRABACIÓN (decide descarga directa o mezcla)
+// =============================================================================
+async function procesarGrabacion(convId, details, fileName, i, total) {
+  log(`[${i+1}/${total}] Obteniendo ID de grabación...`, 'info');
+  const recordingId = await obtenerRecordingId(convId);
+  log(`[${i+1}/${total}] Recording ID: ${recordingId}`, 'info');
+  const ext = await descargarConBearer(convId, recordingId, fileName);
+  log(`[${i+1}/${total}] ✓ Descargado como ${fileName}.${ext}`, 'ok');
+  return true;
+}
+
+// =============================================================================
+// PROCESAR LISTA DE IDs (MODO BULK O LISTADO)
+// =============================================================================
+async function procesar() {
+  if (procesando) return;
+  
+  const ids = getIds();
+  if (ids.length === 0) {
+    alert('Ingresa al menos un ID de conversación');
+    return;
+  }
+
+  procesando = true;
+  const btn = document.getElementById('btnProcesar');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  document.getElementById('logPanel').style.display = 'block';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('summaryBar').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'none';
+  document.getElementById('resultsBody').innerHTML = '';
+  document.getElementById('logBody').innerHTML = '';
+  recordingsList = [];
+
+  let okCount = 0, noRecCount = 0, errorCount = 0;
+
+  log(`Iniciando proceso para ${ids.length} conversación(es) — modo: ${currentMode.toUpperCase()}`);
+
+  for (let i = 0; i < ids.length; i++) {
+    const convId = ids[i];
+    setProgress(i, ids.length);
+    log(`[${i+1}/${ids.length}] ${convId} — verificando grabación...`);
+
+    try {
+      let details = null;
+      let hasRecording = false;
+      
+      try {
+        details = await apiRequest(`/analytics/conversations/${convId}/details`);
+        hasRecording = details.participants?.some(p => 
+          p.sessions?.some(s => s.recording === true)
+        );
+      } catch (e) {
+        log(`[${i+1}/${ids.length}] Error en analytics: ${e.message}`, 'warn');
+      }
+
+      if (!hasRecording) {
+        log(`[${i+1}/${ids.length}] Sin grabación confirmada.`, 'fail');
+        noRecCount++;
+        if (currentMode === 'listado') {
+          addTableRow(i+1, convId, details, null, 'sin-grabacion');
+        }
+        continue;
+      }
+
+      const fileName = buildFileName(convId, details || {});
+
+      if (currentMode === 'listado') {
+        addTableRow(i+1, convId, details, { fileName, convId }, 'ok');
+        log(`[${i+1}/${ids.length}] ✓ Grabación disponible.`, 'ok');
+        okCount++;
+      } else {
+        await procesarGrabacion(convId, details, fileName, i, ids.length);
+        okCount++;
+        await sleep(3000);
+      }
+    } catch (err) {
+      log(`[${i+1}/${ids.length}] Error: ${err.message}`, 'fail');
+      errorCount++;
+      if (currentMode === 'listado') {
+        addTableRow(i+1, convId, null, null, 'error');
+      }
+    }
+  }
+
+  setProgress(ids.length, ids.length);
+  document.getElementById('sumTotal').textContent = ids.length;
+  document.getElementById('sumOk').textContent = okCount;
+  document.getElementById('sumNoRec').textContent = noRecCount;
+  document.getElementById('sumErr').textContent = errorCount;
+  document.getElementById('summaryBar').style.display = 'flex';
+
+  if (currentMode === 'listado' && recordingsList.length > 0) {
+    document.getElementById('resultsPanel').style.display = 'block';
+  }
+
+  log(`Proceso finalizado — ${okCount} OK · ${noRecCount} sin grabación · ${errorCount} errores`);
+
+  procesando = false;
+  btn.classList.remove('loading');
+  btn.disabled = false;
+}
+
+// =============================================================================
+// FUNCIONES AUXILIARES (UI)
+// =============================================================================
+function buildFileName(convId, data) {
+  let startDate = data?.conversationStart || new Date().toISOString();
+  const date = new Date(startDate);
+  const dateStr = `${String(date.getDate()).padStart(2,'0')}_${String(date.getMonth()+1).padStart(2,'0')}_${date.getFullYear()}`;
+  let phone = '0000000000';
+  if (data?.participants) {
+    for (const p of data.participants) {
+      for (const s of p.sessions || []) {
+        if (s.ani && s.ani !== 'unknown') phone = String(s.ani).replace(/\D/g, '').slice(-10);
+        if (s.dnis && s.dnis !== 'unknown' && phone === '0000000000') phone = String(s.dnis).replace(/\D/g, '').slice(-10);
+      }
+    }
+  }
+  if (phone.length < 10) phone = phone.padStart(10, '0');
+  return `${dateStr}_${phone}_${convId}`;
+}
+
+function addTableRow(num, convId, details, downloadData, statusType) {
+  const tbody = document.getElementById('resultsBody');
+  let date = '—';
+  if (details?.conversationStart) {
+    const d = new Date(details.conversationStart);
+    date = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+  }
+  let phone = '—', direction = '—', duration = '—';
+  if (details?.participants) {
+    for (const p of details.participants) {
+      for (const s of p.sessions || []) {
+        if (s.ani && phone === '—') phone = String(s.ani).replace(/\D/g, '').slice(-10);
+        if (s.dnis && phone === '—') phone = String(s.dnis).replace(/\D/g, '').slice(-10);
+        if (s.direction) direction = s.direction.toUpperCase();
+      }
+    }
+  }
+  if (details?.durationSeconds) {
+    const mins = Math.floor(details.durationSeconds / 60);
+    const secs = details.durationSeconds % 60;
+    duration = `${mins}:${String(secs).padStart(2,'0')}`;
+  }
+  
+  let statusHtml = '';
+  let accionesHtml = '—';
+  
+  if (statusType === 'ok' && downloadData) {
+    statusHtml = '<span style="color:var(--green)">✓ GRABACIÓN</span>';
+    const dataEnc = encodeURIComponent(JSON.stringify({ fileName: downloadData.fileName, convId: downloadData.convId }));
+    accionesHtml = `<button class="btn-download" onclick="descargarCompleto('${dataEnc}', this)">⬇ Descargar audio completo</button>`;
+    recordingsList.push(downloadData);
+  } else if (statusType === 'sin-grabacion') {
+    statusHtml = '<span style="color:var(--yellow)">⚠ SIN GRABACIÓN</span>';
+  } else {
+    statusHtml = '<span style="color:var(--red)">✗ ERROR</span>';
+  }
+  
+  const row = `<tr>
+    <td>${num}</td>
+    <td>${date}</td>
+    <td>${direction}</td>
+    <td>${phone}</td>
+    <td style="font-size:10px; color:var(--muted)">${convId.substring(0, 20)}...</td>
+    <td>${duration}</td>
+    <td>${statusHtml}</td>
+    <td>${accionesHtml}</td>
+  </tr>`;
+  tbody.insertAdjacentHTML('beforeend', row);
+}
+
+window.descargarCompleto = async function(dataEnc, btn) {
+  const data = JSON.parse(decodeURIComponent(dataEnc));
+  btn.disabled = true;
+  btn.textContent = '⏳ Procesando...';
+  try {
+    let details = null;
+    try {
+      details = await apiRequest(`/analytics/conversations/${data.convId}/details`);
+    } catch(e) {}
+    const fileName = data.fileName || buildFileName(data.convId, details || {});
+    await procesarGrabacion(data.convId, details, fileName, 0, 1);
+    btn.textContent = '✓ OK';
+    btn.style.background = 'rgba(0,229,160,0.2)';
+    setTimeout(() => {
+      btn.textContent = '⬇ Descargar audio completo';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 3000);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '⬇ Reintentar';
+    alert('Error: ' + err.message);
+  }
+};
+
+function exportarCSV() {
+  const rows = document.querySelectorAll('#resultsBody tr');
+  if (rows.length === 0) return;
+  let csv = '#,Fecha,Dirección,Teléfono,ID,Duración,Estado\n';
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    const values = Array.from(cells).slice(0, 6).map(c => `"${c.innerText.replace(/"/g, '""')}"`);
+    csv += values.join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `grabaciones_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const token = sessionStorage.getItem('gc_access_token');
+  if (!token) {
+    window.location.href = 'index.html';
+    return;
+  }
+  document.getElementById('sessionUser').textContent = sessionStorage.getItem('gc_user_name')?.split(' ')[0] || 'Usuario';
+  document.getElementById('idsInput').addEventListener('input', updateCount);
+});
+</script>
+</body>
+</html>
