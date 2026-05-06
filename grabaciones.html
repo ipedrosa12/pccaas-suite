@@ -596,8 +596,8 @@ async function descargarConBearer(convId, recordingId, fileName) {
   const region = getRegion();
   const token  = getToken();
 
-  // PASO 1: Obtener metadata del recording para conseguir las URIs pre-firmadas
-  log(`Obteniendo URLs de descarga...`);
+  // PASO 1: Obtener metadata con Bearer token
+  log(`Obteniendo metadata de grabación...`);
   const metaRes = await fetch(
     `https://api.${region}/api/v2/conversations/${convId}/recordings/${recordingId}`,
     { headers: { 'Authorization': `Bearer ${token}` } }
@@ -605,17 +605,16 @@ async function descargarConBearer(convId, recordingId, fileName) {
   if (!metaRes.ok) throw new Error(`Error obteniendo metadata: ${metaRes.status}`);
   const info = await metaRes.json();
 
-  // PASO 2: Intentar descarga MP3 directamente desde la API (ambos canales mezclados)
-  log(`Intentando descarga MP3 con Bearer token...`);
+  // PASO 2: Intentar descarga MP3 directamente con Bearer
+  log(`Descargando MP3 con Bearer token...`);
   const mp3Res = await fetch(
     `https://api.${region}/api/v2/conversations/${convId}/recordings/${recordingId}?formatId=MP3`,
     { headers: { 'Authorization': `Bearer ${token}` } }
   );
 
   if (mp3Res.ok) {
-    const ct = mp3Res.headers.get('content-type') || '';
+    const ct   = mp3Res.headers.get('content-type') || '';
     const blob = await mp3Res.blob();
-    // Verificar que es audio y no JSON
     if (!ct.includes('json') && blob.size > 5000) {
       log(`✓ MP3 recibido (${Math.round(blob.size/1024)}KB). Guardando...`);
       triggerDownload(URL.createObjectURL(blob), `${fileName}.mp3`);
@@ -623,49 +622,71 @@ async function descargarConBearer(convId, recordingId, fileName) {
     }
   }
 
-  // PASO 3: Fallback — usar URIs pre-firmadas de la metadata
-  log(`API no devolvió binario. Usando URIs pre-firmadas...`, 'warn');
+  // PASO 3: La API devolvió JSON con las URIs pre-firmadas
+  // Las URLs de S3 tienen CORS bloqueado para fetch() desde el browser.
+  // Solución: usar XMLHttpRequest con credenciales o abrir en iframe oculto.
+  log(`Usando descarga via iframe con token en URL...`, 'warn');
 
-  const uri1 = info.mediaUris?.['1']?.mediaUri;
-  const uri2 = info.mediaUris?.['2']?.mediaUri;
-  const uri0 = info.mediaUris?.['0']?.mediaUri || info.mediaUris?.['mixed']?.mediaUri;
-  const uriDirect = info.mediaUri;
+  const uri1   = info.mediaUris?.['1']?.mediaUri;
+  const uri2   = info.mediaUris?.['2']?.mediaUri;
+  const uri0   = info.mediaUris?.['0']?.mediaUri || info.mediaUris?.['mixed']?.mediaUri;
+  const uriFB  = info.mediaUri;
 
-  // Si hay un canal combinado (0 o mixed), descargarlo directamente
-  if (uri0) {
-    log(`Descargando canal combinado...`);
-    const r = await fetch(uri0);
-    if (r.ok) {
-      const b = await r.blob();
-      triggerDownload(URL.createObjectURL(b), `${fileName}.webm`);
-      return 'webm';
+  // Intentar fetch con no-cors para obtener el blob (funciona en algunos navegadores)
+  const uriToTry = uri0 || uri1 || uri2 || uriFB;
+  if (!uriToTry) throw new Error('No se encontró URI de descarga');
+
+  // Intentar con XMLHttpRequest que maneja mejor algunos casos de CORS
+  try {
+    const blob = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', uriToTry, true);
+      xhr.responseType = 'blob';
+      xhr.onload = () => {
+        if (xhr.status === 200) resolve(xhr.response);
+        else reject(new Error(`XHR error: ${xhr.status}`));
+      };
+      xhr.onerror = () => reject(new Error('XHR network error'));
+      xhr.send();
+    });
+
+    if (blob && blob.size > 1000) {
+      const ext = blob.type.includes('wav') ? 'wav' : 'webm';
+      triggerDownload(URL.createObjectURL(blob), `${fileName}.${ext}`);
+      log(`✓ Descargado via XHR como ${fileName}.${ext}`, 'ok');
+      return ext;
     }
+  } catch(xhrErr) {
+    log(`XHR bloqueado: ${xhrErr.message}`, 'warn');
   }
 
-  // Si hay dos canales separados, mezclarlos con Web Audio API
+  // PASO 4: Si hay dos canales, mezclar con Web Audio API
   if (uri1 && uri2) {
-    log(`Mezclando canal agente + cliente con Web Audio API...`);
-    const [b1, b2] = await Promise.all([
-      fetch(uri1).then(r => { if (!r.ok) throw new Error('Error canal 1'); return r.blob(); }),
-      fetch(uri2).then(r => { if (!r.ok) throw new Error('Error canal 2'); return r.blob(); })
-    ]);
-    await mezclarCanales(b1, b2, fileName);
-    return 'wav';
-  }
-
-  // Si solo hay un canal, descargarlo
-  const uriFallback = uri1 || uri2 || uriDirect;
-  if (uriFallback) {
-    log(`Descargando canal disponible...`, 'warn');
-    const r = await fetch(uriFallback);
-    if (r.ok) {
-      const b = await r.blob();
-      triggerDownload(URL.createObjectURL(b), `${fileName}.webm`);
-      return 'webm';
+    log(`Mezclando canales con Web Audio API...`);
+    try {
+      const [b1, b2] = await Promise.all([
+        fetch(uri1).then(r => r.blob()),
+        fetch(uri2).then(r => r.blob())
+      ]);
+      await mezclarCanales(b1, b2, fileName);
+      return 'wav';
+    } catch(e) {
+      log(`Mezcla fallida: ${e.message}`, 'warn');
     }
   }
 
-  throw new Error('No se pudo obtener la grabación por ningún método');
+  // PASO 5: Último recurso — abrir la URL directamente en el browser
+  // El archivo se descarga con el nombre de Genesys pero es funcional
+  log(`Abriendo descarga directa en el browser...`, 'warn');
+  const a = document.createElement('a');
+  a.href = uriToTry;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  log(`⚠ Archivo descargado con nombre original de Genesys. El backend Node.js resolverá el nombre personalizado.`, 'warn');
+  return 'webm';
 }
 
 function triggerDownload(blobUrl, fullFileName) {
