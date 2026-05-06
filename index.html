@@ -32,6 +32,7 @@
       position: relative;
     }
 
+    /* Fondo con ruido y gradiente */
     body::before {
       content: '';
       position: fixed;
@@ -43,6 +44,7 @@
       z-index: 0;
     }
 
+    /* Grid decorativo */
     body::after {
       content: '';
       position: fixed;
@@ -69,6 +71,7 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* Marca */
     .brand {
       display: flex;
       align-items: center;
@@ -77,26 +80,38 @@
     }
 
     .brand-logo {
-      width: 36px; height: 36px;
+      width: 36px;
+      height: 36px;
       background: var(--orange);
       border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: 'Space Mono', monospace;
-      font-weight: 700; font-size: 14px; color: white;
-      letter-spacing: -1px; flex-shrink: 0;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+      letter-spacing: -1px;
+      flex-shrink: 0;
     }
 
     .brand-name {
       font-family: 'Space Mono', monospace;
-      font-size: 13px; font-weight: 700;
-      letter-spacing: 0.08em; color: var(--text); text-transform: uppercase;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      text-transform: uppercase;
     }
 
     .brand-sub {
-      font-size: 11px; color: var(--muted);
-      letter-spacing: 0.04em; margin-top: 1px;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      margin-top: 1px;
     }
 
+    /* Card principal */
     .card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -110,26 +125,41 @@
 
     .card-title {
       font-family: 'Space Mono', monospace;
-      font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
     }
 
     .card-desc {
-      font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.5;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+      line-height: 1.5;
     }
 
+    /* Divider decorativo */
     .divider {
-      width: 32px; height: 2px;
+      width: 32px;
+      height: 2px;
       background: var(--orange);
-      margin-bottom: 28px; border-radius: 2px;
+      margin-bottom: 28px;
+      border-radius: 2px;
     }
 
-    .field { margin-bottom: 18px; }
+    /* Labels y campos */
+    .field {
+      margin-bottom: 18px;
+    }
 
     label {
       display: block;
-      font-size: 11px; font-weight: 600;
-      letter-spacing: 0.08em; color: var(--muted);
-      text-transform: uppercase; margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
     }
 
     select, input[type="text"], input[type="password"] {
@@ -142,7 +172,9 @@
       font-family: 'DM Sans', sans-serif;
       font-size: 14px;
       transition: border-color 0.2s, box-shadow 0.2s;
-      -webkit-appearance: none; appearance: none; outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      outline: none;
     }
 
     select {
@@ -175,7 +207,8 @@
       border-radius: 8px;
       color: var(--muted);
       font-family: 'DM Sans', sans-serif;
-      font-size: 13px; font-weight: 500;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
       text-align: center;
@@ -187,19 +220,20 @@
       color: var(--orange);
     }
 
-    /* Campos que se muestran/ocultan */
-    .method-fields {
+    /* Campos manuales */
+    .manual-fields {
       overflow: hidden;
       max-height: 0;
       opacity: 0;
       transition: max-height 0.35s ease, opacity 0.3s ease;
     }
 
-    .method-fields.visible {
-      max-height: 300px;
+    .manual-fields.visible {
+      max-height: 200px;
       opacity: 1;
     }
 
+    /* Separador info */
     .info-box {
       background: rgba(0,229,160,0.06);
       border: 1px solid rgba(0,229,160,0.15);
@@ -216,44 +250,7 @@
 
     .info-box svg { flex-shrink: 0; margin-top: 1px; }
 
-    /* Info box para CC — indica que el backend debe estar activo */
-    .info-box.warn {
-      background: rgba(255,165,0,0.06);
-      border-color: rgba(255,165,0,0.2);
-      color: rgba(255,165,0,0.85);
-    }
-
-    /* Backend status indicator */
-    .backend-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 18px;
-      padding: 8px 12px;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 11px;
-      font-family: 'Space Mono', monospace;
-      color: var(--muted);
-    }
-
-    .status-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--muted);
-      flex-shrink: 0;
-    }
-
-    .status-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .status-dot.offline { background: #ff4f4f;      box-shadow: 0 0 6px #ff4f4f; }
-    .status-dot.checking {
-      background: #f5c542;
-      animation: pulse 1s ease-in-out infinite;
-    }
-
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
+    /* Botón principal */
     .btn-login {
       width: 100%;
       padding: 14px;
@@ -262,16 +259,19 @@
       border-radius: 8px;
       color: white;
       font-family: 'Space Mono', monospace;
-      font-size: 13px; font-weight: 700;
+      font-size: 13px;
+      font-weight: 700;
       letter-spacing: 0.05em;
       cursor: pointer;
       transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-      position: relative; overflow: hidden;
+      position: relative;
+      overflow: hidden;
     }
 
     .btn-login::after {
       content: '';
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: 0;
       background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
       pointer-events: none;
     }
@@ -282,11 +282,17 @@
     }
 
     .btn-login:active { transform: scale(0.98); }
-    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    .btn-login:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Estado de carga */
     .btn-login .spinner {
       display: none;
-      width: 16px; height: 16px;
+      width: 16px;
+      height: 16px;
       border: 2px solid rgba(255,255,255,0.3);
       border-top-color: white;
       border-radius: 50%;
@@ -295,44 +301,60 @@
     }
 
     .btn-login.loading .btn-text { display: none; }
-    .btn-login.loading .spinner  { display: block; }
+    .btn-login.loading .spinner { display: block; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Error */
     .error-msg {
       margin-top: 14px;
       padding: 10px 14px;
       background: rgba(255,60,60,0.08);
       border: 1px solid rgba(255,60,60,0.2);
       border-radius: 8px;
-      font-size: 12px; color: #ff7070;
+      font-size: 12px;
+      color: #ff7070;
       display: none;
     }
 
     .error-msg.visible { display: block; }
 
+    /* Footer */
     .footer {
       margin-top: 20px;
       text-align: center;
-      font-size: 11px; color: var(--muted);
+      font-size: 11px;
+      color: var(--muted);
       font-family: 'Space Mono', monospace;
     }
 
     .footer span { color: var(--orange); }
 
+    /* Indicador de seguridad */
     .secure-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      margin-top: 8px; font-size: 10px;
-      color: rgba(0,229,160,0.6); letter-spacing: 0.05em;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      font-size: 10px;
+      color: rgba(0,229,160,0.6);
+      letter-spacing: 0.05em;
     }
 
     .secure-badge::before {
       content: '';
       display: inline-block;
-      width: 6px; height: 6px;
-      background: var(--green); border-radius: 50%;
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
       box-shadow: 0 0 6px var(--green);
       animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
   </style>
 </head>
@@ -343,7 +365,7 @@
     <div class="brand-logo">ES</div>
     <div>
       <div class="brand-name">ESMT Consulting</div>
-      <div class="brand-sub">Automation Suite · v2.1</div>
+      <div class="brand-sub">Automation Suite · v2.0</div>
     </div>
   </div>
 
@@ -356,18 +378,27 @@
     <div class="field">
       <label>Región de Genesys Cloud</label>
       <select id="region">
-        <option value="mypurecloud.com">Americas — US East (Virginia)</option>
-        <option value="use2.us-gov-pure.cloud">Americas — US East 2 (Ohio)</option>
-        <option value="usw2.pure.cloud">Americas — US West (Oregon)</option>
-        <option value="cac1.pure.cloud">Americas — Canada</option>
-        <option value="mypurecloud.com.au">Asia Pacific — Sydney</option>
-        <option value="aps1.pure.cloud">Asia Pacific — Mumbai</option>
-        <option value="apne2.pure.cloud">Asia Pacific — Seoul</option>
-        <option value="apne3.pure.cloud">Asia Pacific — Tokyo</option>
-        <option value="mypurecloud.de">EMEA — Frankfurt</option>
-        <option value="euw2.pure.cloud">EMEA — London</option>
-        <option value="ew1.pure.cloud">EMEA — Dublin</option>
-        <option value="mypurecloud.cl">Americas — Chile (Santiago)</option>
+        <optgroup label="── Americas ──────────────────">
+          <option value="mypurecloud.com">Americas — US East (Virginia)</option>
+          <option value="usw2.pure.cloud">Americas — US West (Oregon)</option>
+          <option value="cac1.pure.cloud">Americas — Canada (Central)</option>
+          <option value="sae1.pure.cloud">Americas — São Paulo (Brasil)</option>
+          <option value="mxc1.pure.cloud">Americas — Mexico (Central)</option>
+          <option value="mypurecloud.cl">Americas — Chile (Santiago)</option>
+          <option value="use2.us-gov-pure.cloud">Americas — US East 2 / FedRAMP (Ohio)</option>
+        </optgroup>
+        <optgroup label="── EMEA ──────────────────────">
+          <option value="mypurecloud.de">EMEA — Frankfurt (Alemania)</option>
+          <option value="mypurecloud.ie">EMEA — Dublin (Irlanda)</option>
+          <option value="euw2.pure.cloud">EMEA — London (Reino Unido)</option>
+          <option value="euc2.pure.cloud">EMEA — Zurich (Suiza)</option>
+        </optgroup>
+        <optgroup label="── Asia Pacific ───────────────">
+          <option value="mypurecloud.com.au">Asia Pacific — Sydney (Australia)</option>
+          <option value="aps1.pure.cloud">Asia Pacific — Mumbai (India)</option>
+          <option value="apne2.pure.cloud">Asia Pacific — Seoul (Corea)</option>
+          <option value="apne3.pure.cloud">Asia Pacific — Tokyo (Japón)</option>
+        </optgroup>
       </select>
     </div>
 
@@ -392,23 +423,8 @@
       <span id="infoText">Serás redirigido al login oficial de Genesys. El token se captura automáticamente desde la URL de retorno.</span>
     </div>
 
-    <!-- ── IMPLICIT GRANT: solo necesita Client ID ── -->
-    <div class="method-fields visible" id="fieldsImplicit">
-      <div class="field">
-        <label>Client ID (OAuth App — Implicit Grant)</label>
-        <input type="text" id="implicitClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
-      </div>
-    </div>
-
-    <!-- ── CLIENT CREDENTIALS: Client ID + Secret ── -->
-    <div class="method-fields" id="fieldsCredentials">
-
-      <!-- Indicador de estado del backend -->
-      <div class="backend-status" id="backendStatus">
-        <div class="status-dot checking" id="statusDot"></div>
-        <span id="statusText">Verificando backend local…</span>
-      </div>
-
+    <!-- Campos Client Credentials (ocultos por defecto) -->
+    <div class="manual-fields" id="manualFields">
       <div class="field">
         <label>Client ID</label>
         <input type="text" id="clientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
@@ -417,6 +433,12 @@
         <label>Client Secret</label>
         <input type="password" id="clientSecret" placeholder="••••••••••••••••••••••••">
       </div>
+    </div>
+
+    <!-- Client ID para Implicit (siempre visible) -->
+    <div class="field" id="implicitClientIdField">
+      <label>Client ID (OAuth App)</label>
+      <input type="text" id="implicitClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
     </div>
 
     <button class="btn-login" id="btnLogin" onclick="handleLogin()">
@@ -436,61 +458,48 @@
 
 <script>
   // ─── CONFIGURACIÓN ─────────────────────────────────────────────────────────
-  const REDIRECT_URI  = 'https://ipedrosa12.github.io/pccaas-suite/auth-callback.html';
-  const BACKEND_URL   = 'http://localhost:3000';   // Tu server.js local
+  // Ajusta esta URL según tu entorno:
+  // Local:      http://127.0.0.1:5500/auth-callback.html
+  // Producción: https://tu-dominio.com/auth-callback.html
+  const REDIRECT_URI = 'https://ipedrosa12.github.io/pccaas-suite/auth-callback.html';
 
+  // Permisos que tu app necesita (ajustar según tools a usar)
   const SCOPES = [
-    'analytics', 'architect', 'authorization',
-    'conversations', 'outbound', 'recordings', 'routing', 'users'
+    'analytics',
+    'architect',
+    'authorization',
+    'conversations',
+    'outbound',
+    'recordings',
+    'routing',
+    'users'
   ].join(' ');
 
-  let currentMethod   = 'implicit';
-  let backendOnline   = false;
+  // ─── ESTADO ────────────────────────────────────────────────────────────────
+  let currentMethod = 'implicit';
 
-  // ─── CHECK BACKEND ─────────────────────────────────────────────────────────
-  // Verificamos si el server.js está corriendo antes de mostrar el botón CC
-  async function checkBackend() {
-    try {
-      const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(3000) });
-      const ok  = res.ok;
-      setBackendStatus(ok ? 'online' : 'offline');
-    } catch (_) {
-      setBackendStatus('offline');
-    }
-  }
-
-  function setBackendStatus(state) {
-    backendOnline = state === 'online';
-    const dot  = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-    dot.className  = `status-dot ${state}`;
-    text.textContent = backendOnline
-      ? `Backend activo · ${BACKEND_URL}`
-      : `Backend offline — inicia server.js en localhost:3000`;
-  }
-
-  // ─── UI: CAMBIO DE MÉTODO ──────────────────────────────────────────────────
+  // ─── LÓGICA DE UI ──────────────────────────────────────────────────────────
   function setMethod(method) {
     currentMethod = method;
-
-    document.getElementById('btn-implicit').classList.toggle('active',    method === 'implicit');
-    document.getElementById('btn-credentials').classList.toggle('active', method === 'credentials');
-
-    document.getElementById('fieldsImplicit').classList.toggle('visible',    method === 'implicit');
-    document.getElementById('fieldsCredentials').classList.toggle('visible', method === 'credentials');
-
-    const infoBox  = document.getElementById('infoBox');
-    const infoText = document.getElementById('infoText');
+    const btnImplicit    = document.getElementById('btn-implicit');
+    const btnCredentials = document.getElementById('btn-credentials');
+    const manualFields   = document.getElementById('manualFields');
+    const implicitField  = document.getElementById('implicitClientIdField');
+    const infoText       = document.getElementById('infoText');
 
     if (method === 'implicit') {
-      infoBox.className = 'info-box';
+      btnImplicit.classList.add('active');
+      btnCredentials.classList.remove('active');
+      manualFields.classList.remove('visible');
+      implicitField.style.display = 'block';
       infoText.textContent = 'Serás redirigido al login oficial de Genesys. El token se captura automáticamente desde la URL de retorno.';
     } else {
-      infoBox.className = 'info-box warn';
-      infoText.textContent = 'El Client Secret nunca pasa al browser. El backend local actúa como proxy seguro para el intercambio de token.';
-      checkBackend();
+      btnCredentials.classList.add('active');
+      btnImplicit.classList.remove('active');
+      manualFields.classList.add('visible');
+      implicitField.style.display = 'none';
+      infoText.textContent = 'Client Credentials no expone contraseña al browser. Ideal para scripts de servidor Node.js.';
     }
-
     clearError();
   }
 
@@ -509,10 +518,11 @@
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
   }
 
-  // ─── HANDLER PRINCIPAL ─────────────────────────────────────────────────────
+  // ─── LÓGICA PRINCIPAL ──────────────────────────────────────────────────────
   function handleLogin() {
     clearError();
     const region = document.getElementById('region').value;
+
     if (currentMethod === 'implicit') {
       handleImplicitGrant(region);
     } else {
@@ -533,13 +543,16 @@
       return;
     }
 
+    // Guardar datos en sessionStorage para recuperar después del redirect
     sessionStorage.setItem('gc_region',    region);
     sessionStorage.setItem('gc_client_id', clientId);
     sessionStorage.setItem('gc_method',    'implicit');
 
+    // Guardar en localStorage para persistir entre sesiones (el Client ID no se pierde al cerrar el browser)
     localStorage.setItem('gc_saved_client_id', clientId);
     localStorage.setItem('gc_saved_region',    region);
 
+    // Construir URL de autorización OAuth 2.0
     const state       = generateState();
     const authBaseUrl = `https://login.${region}/oauth/authorize`;
     const params      = new URLSearchParams({
@@ -552,6 +565,7 @@
 
     sessionStorage.setItem('gc_oauth_state', state);
 
+    // Mostrar loading y redirigir
     const btn = document.getElementById('btnLogin');
     btn.classList.add('loading');
     btn.disabled = true;
@@ -562,8 +576,8 @@
   }
 
   // ── CLIENT CREDENTIALS ─────────────────────────────────────────────────────
-  // Llama al backend proxy /auth/token, que hace el intercambio seguro
-  // con Genesys sin exponer el secret al browser.
+  // Llama al backend proxy /auth/token para intercambiar credenciales sin
+  // exponer el clientSecret al browser ni pasar por Genesys directamente (CORS).
   async function handleClientCredentials(region) {
     const clientId     = document.getElementById('clientId').value.trim();
     const clientSecret = document.getElementById('clientSecret').value.trim();
@@ -576,56 +590,53 @@
       showError('El Client ID debe tener formato UUID válido.');
       return;
     }
-    if (!backendOnline) {
-      showError('El backend no está disponible. Inicia server.js con: node server.js');
-      return;
-    }
 
     const btn = document.getElementById('btnLogin');
     btn.classList.add('loading');
     btn.disabled = true;
 
     try {
-      const res  = await fetch(`${BACKEND_URL}/auth/token`, {
+      // 1. Pedir token al backend proxy
+      const authRes = await fetch('http://localhost:3000/auth/token', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ clientId, clientSecret, region })
       });
 
-      const data = await res.json();
+      const authData = await authRes.json();
 
-      if (!res.ok) {
-        throw new Error(data.error_description || data.error || `Error ${res.status}`);
+      if (!authRes.ok) {
+        throw new Error(authData.error_description || authData.error || `Error ${authRes.status}`);
       }
 
-      // ── Guardar sesión (misma estructura que Implicit Grant) ────────────────
-      const expiresAt = Date.now() + (parseInt(data.expires_in || 86400) * 1000);
-      sessionStorage.setItem('gc_access_token',  data.access_token);
+      // 2. Guardar token en sessionStorage (misma estructura que Implicit Grant)
+      const expiresAt = Date.now() + (parseInt(authData.expires_in || 86400) * 1000);
+      sessionStorage.setItem('gc_access_token',  authData.access_token);
       sessionStorage.setItem('gc_token_expires', expiresAt.toString());
       sessionStorage.setItem('gc_region',        region);
       sessionStorage.setItem('gc_client_id',     clientId);
       sessionStorage.setItem('gc_method',        'credentials');
 
-      // Guardar para autorellenar la próxima vez (solo el ID, nunca el secret)
+      // Guardar Client ID para autorellenar (nunca el secret)
       localStorage.setItem('gc_saved_client_id_cc', clientId);
       localStorage.setItem('gc_saved_region',        region);
 
-      // ── Obtener info del usuario para el dashboard ──────────────────────────
+      // 3. Obtener nombre real de la organización via /organizations/me
       try {
-        const meRes  = await fetch(`https://api.${region}/api/v2/users/me`, {
-          headers: { 'Authorization': `Bearer ${data.access_token}` }
+        const orgRes  = await fetch(`https://api.${region}/api/v2/organizations/me`, {
+          headers: { 'Authorization': `Bearer ${authData.access_token}` }
         });
-        const meData = await meRes.json();
-        sessionStorage.setItem('gc_user_name',  meData.name  || 'Sistema');
-        sessionStorage.setItem('gc_user_email', meData.email || '');
-        sessionStorage.setItem('gc_org_name',   meData.organization?.name || region);
-      } catch (_) {
-        // CORS puede bloquear /users/me desde GitHub Pages. No es crítico.
+        const orgData = await orgRes.json();
+        sessionStorage.setItem('gc_org_name',  orgData.name      || orgData.shortName || region);
+        sessionStorage.setItem('gc_org_short', orgData.shortName || orgData.name      || region);
         sessionStorage.setItem('gc_user_name', 'Sistema');
+      } catch (_) {
+        // CORS puede bloquearlo desde GitHub Pages; no es crítico
         sessionStorage.setItem('gc_org_name',  region);
+        sessionStorage.setItem('gc_user_name', 'Sistema');
       }
 
-      // ── Redirigir al dashboard ──────────────────────────────────────────────
+      // 4. Redirigir al dashboard
       window.location.href = 'app.html';
 
     } catch (err) {
@@ -642,18 +653,23 @@
     return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  // ─── INIT ──────────────────────────────────────────────────────────────────
+  // Restaurar Client ID si ya fue ingresado antes
   window.addEventListener('DOMContentLoaded', () => {
-    // Restaurar Client ID si ya fue ingresado antes
-    const savedRegion = localStorage.getItem('gc_saved_region') || sessionStorage.getItem('gc_region');
-    if (savedRegion) document.getElementById('region').value = savedRegion;
+    const savedClientId = localStorage.getItem('gc_saved_client_id') || sessionStorage.getItem('gc_client_id');
+    const savedRegion   = localStorage.getItem('gc_saved_region') || sessionStorage.getItem('gc_region');
 
-    // Restaurar por método
-    const savedImplicitId = localStorage.getItem('gc_saved_client_id') || sessionStorage.getItem('gc_client_id');
-    if (savedImplicitId) document.getElementById('implicitClientId').value = savedImplicitId;
+    if (savedClientId) {
+      document.getElementById('implicitClientId').value = savedClientId;
+    }
+    if (savedRegion) {
+      document.getElementById('region').value = savedRegion;
+    }
 
+    // Restaurar Client ID de CC (nunca el secret)
     const savedCcId = localStorage.getItem('gc_saved_client_id_cc');
-    if (savedCcId) document.getElementById('clientId').value = savedCcId;
+    if (savedCcId) {
+      document.getElementById('clientId').value = savedCcId;
+    }
   });
 </script>
 </body>
