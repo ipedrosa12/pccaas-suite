@@ -31,8 +31,10 @@
 
     body::before {
       content: '';
-      position: fixed; inset: 0;
-      background: radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,229,160,0.06) 0%, transparent 60%);
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,229,160,0.06) 0%, transparent 60%);
       pointer-events: none;
     }
 
@@ -48,10 +50,13 @@
     }
 
     .icon-wrap {
-      width: 72px; height: 72px;
+      width: 72px;
+      height: 72px;
       border-radius: 50%;
       margin: 0 auto 24px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       position: relative;
     }
 
@@ -70,8 +75,10 @@
       border: 2px solid rgba(255,79,79,0.3);
     }
 
+    /* Spinner de carga */
     .spinner-ring {
-      position: absolute; inset: -4px;
+      position: absolute;
+      inset: -4px;
       border-radius: 50%;
       border: 2px solid transparent;
       border-top-color: var(--orange);
@@ -82,14 +89,21 @@
 
     .status-title {
       font-family: 'Space Mono', monospace;
-      font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
     }
 
     .status-desc {
-      font-size: 14px; color: var(--muted);
-      max-width: 300px; margin: 0 auto; line-height: 1.6;
+      font-size: 14px;
+      color: var(--muted);
+      max-width: 300px;
+      margin: 0 auto;
+      line-height: 1.6;
     }
 
+    /* Log de progreso */
     .log {
       margin-top: 28px;
       background: rgba(255,255,255,0.03);
@@ -115,7 +129,8 @@
       padding: 12px 28px;
       border-radius: 8px;
       font-family: 'Space Mono', monospace;
-      font-size: 12px; font-weight: 700;
+      font-size: 12px;
+      font-weight: 700;
       letter-spacing: 0.05em;
       cursor: pointer;
       text-decoration: none;
@@ -123,8 +138,19 @@
       border: none;
     }
 
-    .btn-primary { background: var(--orange); color: white; }
+    .btn-primary {
+      background: var(--orange);
+      color: white;
+    }
     .btn-primary:hover { background: #cc4c00; }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-left: 10px;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
 
     .token-preview {
       margin-top: 20px;
@@ -144,6 +170,7 @@
 <body>
 
 <div class="container" id="mainContainer">
+  <!-- Estado inicial: cargando -->
   <div class="icon-wrap loading" id="iconWrap">
     <div class="spinner-ring"></div>
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF5F00" stroke-width="1.5">
@@ -152,7 +179,7 @@
   </div>
 
   <div class="status-title" id="statusTitle">Procesando autenticación...</div>
-  <div class="status-desc"  id="statusDesc">Capturando token desde Genesys Cloud. Un momento.</div>
+  <div class="status-desc" id="statusDesc">Capturando token desde Genesys Cloud. Un momento.</div>
 
   <div class="log" id="logBox">
     <span class="info">▶</span> Iniciando captura de token OAuth...<br>
@@ -163,6 +190,7 @@
 </div>
 
 <script>
+  // ─── UTILIDADES DE LOG ─────────────────────────────────────────────────────
   const logBox = document.getElementById('logBox');
 
   function log(msg, type = '') {
@@ -177,21 +205,26 @@
     const icon = document.getElementById('iconWrap');
     icon.className = `icon-wrap ${state}`;
 
-    const ring = icon.querySelector('.spinner-ring');
-    if (state !== 'loading' && ring) ring.remove();
+    if (state !== 'loading') {
+      const ring = icon.querySelector('.spinner-ring');
+      if (ring) ring.remove();
+    }
 
     if (state === 'success') {
       icon.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00e5a0" stroke-width="2">
-        <polyline points="20 6 9 17 4 12"/></svg>`;
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>`;
     } else if (state === 'error') {
       icon.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff4f4f" stroke-width="2">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>`;
     }
   }
 
-  // ─── PARSEAR HASH (Implicit Grant) ─────────────────────────────────────────
+  // ─── PARSEAR HASH DE URL ───────────────────────────────────────────────────
+  // Genesys devuelve: /auth-callback.html#access_token=XXX&token_type=bearer&expires_in=86400&state=YYY
   function parseHashParams() {
-    const hash   = window.location.hash.substring(1);
+    const hash   = window.location.hash.substring(1); // quitar el #
     const params = new URLSearchParams(hash);
     return {
       access_token: params.get('access_token'),
@@ -203,20 +236,23 @@
     };
   }
 
+  // ─── VALIDAR STATE CSRF ────────────────────────────────────────────────────
   function validateState(returnedState) {
     const savedState = sessionStorage.getItem('gc_oauth_state');
     return savedState && savedState === returnedState;
   }
 
+  // ─── GUARDAR TOKEN SEGURO ──────────────────────────────────────────────────
   function saveSession(token, expiresIn, region, clientId) {
     const expiresAt = Date.now() + (parseInt(expiresIn) * 1000);
-    sessionStorage.setItem('gc_access_token',  token);
+    sessionStorage.setItem('gc_access_token', token);
     sessionStorage.setItem('gc_token_expires', expiresAt.toString());
     sessionStorage.setItem('gc_region',        region);
     sessionStorage.setItem('gc_client_id',     clientId);
     sessionStorage.removeItem('gc_oauth_state');
   }
 
+  // ─── VERIFICAR TOKEN CON GENESYS API ──────────────────────────────────────
   async function verifyToken(token, region) {
     log('Verificando token con Genesys API...');
     const res = await fetch(`https://api.${region}/api/v2/users/me`, {
@@ -228,18 +264,8 @@
 
   // ─── FLUJO PRINCIPAL ───────────────────────────────────────────────────────
   async function processCallback() {
+    // Pequeño delay visual
     await delay(600);
-
-    // ── Si ya viene con token en sessionStorage (Client Credentials desde index.html)
-    //    este callback no debería ejecutarse. Pero por seguridad verificamos:
-    const method = sessionStorage.getItem('gc_method');
-    if (method === 'credentials' && sessionStorage.getItem('gc_access_token')) {
-      log('Sesión Client Credentials ya activa.', 'ok');
-      setStatus('Sesión activa', 'Token Client Credentials ya procesado. Redirigiendo...', 'success');
-      await delay(1000);
-      window.location.href = 'app.html';
-      return;
-    }
 
     const params   = parseHashParams();
     const region   = sessionStorage.getItem('gc_region')    || 'mypurecloud.com';
@@ -256,8 +282,18 @@
 
     // ── Sin token en URL ─────────────────────────────────────────────────────
     if (!params.access_token) {
+      // Si ya hay una sesión CC activa (token procesado en index.html), redirigir directo
+      const method = sessionStorage.getItem('gc_method');
+      if (method === 'credentials' && sessionStorage.getItem('gc_access_token')) {
+        log('Sesión Client Credentials ya activa. Redirigiendo...', 'ok');
+        setStatus('Sesión activa', 'Token CC ya procesado.', 'success');
+        await delay(800);
+        window.location.href = 'app.html';
+        return;
+      }
+
       log('No se encontró access_token en la URL.', 'fail');
-      log('Verifica que el método sea Implicit Grant y la URL de retorno sea correcta.', 'fail');
+      log('La URL hash está vacía o fue manipulada.', 'fail');
       setStatus('Token no encontrado', 'Regresa al login e intenta de nuevo.', 'error');
       showRetryButton();
       return;
@@ -281,7 +317,7 @@
     saveSession(params.access_token, params.expires_in || '86400', region, clientId);
     log(`Token guardado. Expira en ${Math.round((params.expires_in || 86400) / 3600)}h.`, 'ok');
 
-    // ── Limpiar token de la URL ──────────────────────────────────────────────
+    // ── Limpiar token de la URL (seguridad) ──────────────────────────────────
     history.replaceState(null, '', window.location.pathname);
     log('URL limpiada (token removido del historial).', 'ok');
 
@@ -292,20 +328,39 @@
       const email = user.email || '';
       const org   = user.organization?.name || '';
 
-      log(`Sesión activa: ${name} — ${org}`, 'ok');
+      // Obtener nombre real de la organización (más preciso que user.organization)
+      let orgName = org;
+      try {
+        const orgRes  = await fetch(`https://api.${region}/api/v2/organizations/me`, {
+          headers: { 'Authorization': `Bearer ${params.access_token}` }
+        });
+        const orgData = await orgRes.json();
+        orgName = orgData.name || orgData.shortName || org;
+        log(`Organización: ${orgName}`, 'ok');
+      } catch (_) {
+        // Fallback al nombre del usuario si /organizations/me falla
+      }
 
+      log(`Sesión activa: ${name} — ${orgName}`, 'ok');
+
+      // Guardar info del usuario
       sessionStorage.setItem('gc_user_name',  name);
       sessionStorage.setItem('gc_user_email', email);
-      sessionStorage.setItem('gc_org_name',   org);
+      sessionStorage.setItem('gc_org_name',   orgName);
 
       setStatus('¡Autenticación exitosa!', `Bienvenido, ${name}. Redirigiendo al panel...`, 'success');
+
+      // Mostrar preview del token (solo primeros/últimos chars)
       showTokenPreview(params.access_token);
 
+      // Redirigir al dashboard
       await delay(1800);
       window.location.href = 'app.html';
 
     } catch (err) {
       log(`Error verificando token: ${err.message}`, 'fail');
+      // El token puede ser válido pero la verificación falló por CORS en local
+      // Igualmente redirigimos al app
       log('Redirigiendo de todos modos (posible CORS en localhost)...', 'info');
       setStatus('Token capturado', 'Verificación limitada en localhost. Redirigiendo...', 'success');
       await delay(2000);
@@ -317,7 +372,9 @@
   function showRetryButton() {
     const el = document.getElementById('actionButtons');
     el.style.display = 'block';
-    el.innerHTML = `<a href="index.html" class="btn btn-primary">← Volver al Login</a>`;
+    el.innerHTML = `
+      <a href="index.html" class="btn btn-primary">← Volver al Login</a>
+    `;
   }
 
   function showTokenPreview(token) {
@@ -327,8 +384,11 @@
     el.innerHTML = `🔐 TOKEN: ${preview}`;
   }
 
-  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function delay(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
 
+  // ─── ARRANCAR ─────────────────────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', processCallback);
 </script>
 </body>
