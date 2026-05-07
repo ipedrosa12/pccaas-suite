@@ -356,6 +356,38 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
+
+    /* ── Org preview ───────────────────────────────────────────────── */
+    .org-preview {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(0,229,160,0.05);
+      border: 1px solid rgba(0,229,160,0.2);
+      border-radius: 8px;
+      margin-top: 4px;
+      animation: previewIn 0.3s ease;
+    }
+    @keyframes previewIn {
+      from { opacity:0; transform:translateY(-4px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .org-preview.visible   { display: flex; }
+    .org-preview.checking  { background: rgba(255,95,0,0.05); border-color: rgba(255,95,0,0.2); }
+    .org-preview.error     { background: rgba(255,60,60,0.05); border-color: rgba(255,60,60,0.15); }
+    .org-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--green); box-shadow: 0 0 6px var(--green);
+    }
+    .org-preview.checking .org-dot {
+      background: var(--orange); box-shadow: 0 0 6px var(--orange);
+      animation: pulse 0.8s ease-in-out infinite;
+    }
+    .org-preview.error .org-dot { background: #ff4f4f; box-shadow: 0 0 6px #ff4f4f; }
+    .org-name { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--green); letter-spacing: 0.04em; }
+    .org-preview.checking .org-name { color: var(--orange); }
+    .org-preview.error    .org-name { color: #ff7070; }
   </style>
 </head>
 <body>
@@ -378,27 +410,18 @@
     <div class="field">
       <label>Región de Genesys Cloud</label>
       <select id="region">
-        <optgroup label="── Americas ──────────────────">
-          <option value="mypurecloud.com">Americas — US East (Virginia)</option>
-          <option value="usw2.pure.cloud">Americas — US West (Oregon)</option>
-          <option value="cac1.pure.cloud">Americas — Canada (Central)</option>
-          <option value="sae1.pure.cloud">Americas — São Paulo (Brasil)</option>
-          <option value="mxc1.pure.cloud">Americas — Mexico (Central)</option>
-          <option value="mypurecloud.cl">Americas — Chile (Santiago)</option>
-          <option value="use2.us-gov-pure.cloud">Americas — US East 2 / FedRAMP (Ohio)</option>
-        </optgroup>
-        <optgroup label="── EMEA ──────────────────────">
-          <option value="mypurecloud.de">EMEA — Frankfurt (Alemania)</option>
-          <option value="mypurecloud.ie">EMEA — Dublin (Irlanda)</option>
-          <option value="euw2.pure.cloud">EMEA — London (Reino Unido)</option>
-          <option value="euc2.pure.cloud">EMEA — Zurich (Suiza)</option>
-        </optgroup>
-        <optgroup label="── Asia Pacific ───────────────">
-          <option value="mypurecloud.com.au">Asia Pacific — Sydney (Australia)</option>
-          <option value="aps1.pure.cloud">Asia Pacific — Mumbai (India)</option>
-          <option value="apne2.pure.cloud">Asia Pacific — Seoul (Corea)</option>
-          <option value="apne3.pure.cloud">Asia Pacific — Tokyo (Japón)</option>
-        </optgroup>
+        <option value="mypurecloud.com">Americas — US East (Virginia)</option>
+        <option value="use2.us-gov-pure.cloud">Americas — US East 2 (Ohio)</option>
+        <option value="usw2.pure.cloud">Americas — US West (Oregon)</option>
+        <option value="cac1.pure.cloud">Americas — Canada</option>
+        <option value="mypurecloud.com.au">Asia Pacific — Sydney</option>
+        <option value="aps1.pure.cloud">Asia Pacific — Mumbai</option>
+        <option value="apne2.pure.cloud">Asia Pacific — Seoul</option>
+        <option value="apne3.pure.cloud">Asia Pacific — Tokyo</option>
+        <option value="mypurecloud.de">EMEA — Frankfurt</option>
+        <option value="euw2.pure.cloud">EMEA — London</option>
+        <option value="ew1.pure.cloud">EMEA — Dublin</option>
+        <option value="mypurecloud.cl">Americas — Chile (Santiago)</option>
       </select>
     </div>
 
@@ -432,6 +455,12 @@
       <div class="field">
         <label>Client Secret</label>
         <input type="password" id="clientSecret" placeholder="••••••••••••••••••••••••">
+      </div>
+
+      <!-- Detección automática de organización -->
+      <div class="org-preview" id="orgPreview">
+        <div class="org-dot"></div>
+        <span class="org-name" id="orgPreviewName">Verificando...</span>
       </div>
     </div>
 
@@ -575,10 +604,8 @@
     }, 400);
   }
 
-  // ── CLIENT CREDENTIALS ─────────────────────────────────────────────────────
-  // Usa el backend proxy para: 1) intercambiar credenciales, 2) obtener nombre de org.
-  // El secret NUNCA llega al browser ni a Genesys directamente (CORS).
-  async function handleClientCredentials(region) {
+  // ── CLIENT CREDENTIALS (para referencia / backend) ─────────────────────────
+  function handleClientCredentials(region) {
     const clientId     = document.getElementById('clientId').value.trim();
     const clientSecret = document.getElementById('clientSecret').value.trim();
 
@@ -591,53 +618,18 @@
       return;
     }
 
-    const btn = document.getElementById('btnLogin');
-    btn.classList.add('loading');
-    btn.disabled = true;
+    sessionStorage.setItem('gc_region',        region);
+    sessionStorage.setItem('gc_client_id',     clientId);
+    sessionStorage.setItem('gc_client_secret', clientSecret);
+    sessionStorage.setItem('gc_method',        'credentials');
 
-    try {
-      // 1. Obtener token vía proxy backend
-      const authRes = await fetch('http://localhost:3000/auth/token', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ clientId, clientSecret, region })
-      });
-      const authData = await authRes.json();
-      if (!authRes.ok) {
-        throw new Error(authData.error_description || authData.error || `Error ${authRes.status}`);
-      }
+    // En modo browser, Client Credentials requiere backend proxy.
+    // Redirigimos al callback con parámetros para que el backend procese.
+    showError('⚠ Client Credentials requiere un backend Node.js. Redirigiendo al proxy...');
 
-      // 2. Guardar token (misma estructura que Implicit Grant)
-      const expiresAt = Date.now() + (parseInt(authData.expires_in || 86400) * 1000);
-      sessionStorage.setItem('gc_access_token',  authData.access_token);
-      sessionStorage.setItem('gc_token_expires', expiresAt.toString());
-      sessionStorage.setItem('gc_region',        region);
-      sessionStorage.setItem('gc_client_id',     clientId);
-      sessionStorage.setItem('gc_method',        'credentials');
-
-      // Guardar Client ID para autorellenar (nunca el secret)
-      localStorage.setItem('gc_saved_client_id_cc', clientId);
-      localStorage.setItem('gc_saved_region',        region);
-
-      // 3. Obtener nombre real de la org vía proxy (evita CORS desde GitHub Pages)
-      try {
-        const orgRes  = await fetch(`http://localhost:3000/org/me?token=${encodeURIComponent(authData.access_token)}&region=${region}`);
-        const orgData = await orgRes.json();
-        sessionStorage.setItem('gc_org_name',  orgData.name      || orgData.shortName || region);
-        sessionStorage.setItem('gc_org_short', orgData.shortName || orgData.name      || region);
-      } catch (_) {
-        sessionStorage.setItem('gc_org_name', region);
-      }
-      sessionStorage.setItem('gc_user_name', 'Sistema');
-
-      // 4. Redirigir al dashboard
-      window.location.href = 'app.html';
-
-    } catch (err) {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-      showError(`❌ ${err.message}`);
-    }
+    setTimeout(() => {
+      window.location.href = `auth-callback.html?method=credentials&region=${region}`;
+    }, 1500);
   }
 
   // ─── UTILIDADES ────────────────────────────────────────────────────────────
@@ -648,6 +640,78 @@
   }
 
   // Restaurar Client ID si ya fue ingresado antes
+  // ─── DETECCIÓN AUTOMÁTICA DE ORGANIZACIÓN ─────────────────────────────────
+  // Cuando Client ID + Secret están llenos, obtiene el token y muestra el
+  // nombre de la org debajo del campo Secret, antes de hacer clic en INGRESAR.
+  let orgDetectTimer = null;
+
+  function setOrgPreview(state, text) {
+    const el   = document.getElementById('orgPreview');
+    const name = document.getElementById('orgPreviewName');
+    el.className   = `org-preview visible ${state}`;
+    name.textContent = text;
+  }
+
+  function hideOrgPreview() {
+    document.getElementById('orgPreview').className = 'org-preview';
+  }
+
+  async function detectarOrg() {
+    const clientId     = document.getElementById('clientId').value.trim();
+    const clientSecret = document.getElementById('clientSecret').value.trim();
+    const region       = document.getElementById('region').value;
+
+    if (!clientId || !clientSecret || !isValidUUID(clientId)) {
+      hideOrgPreview();
+      return;
+    }
+
+    setOrgPreview('checking', 'Verificando organización...');
+
+    try {
+      // 1. Obtener token
+      const authRes = await fetch('http://localhost:3000/auth/token', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ clientId, clientSecret, region })
+      });
+      if (!authRes.ok) {
+        const err = await authRes.json().catch(() => ({}));
+        setOrgPreview('error', err.error_description || 'Credenciales inválidas');
+        return;
+      }
+      const { access_token } = await authRes.json();
+
+      // 2. Obtener nombre de la org
+      const orgRes = await fetch(
+        `http://localhost:3000/org/me?token=${encodeURIComponent(access_token)}&region=${region}`
+      );
+      if (!orgRes.ok) {
+        setOrgPreview('error', 'No se pudo obtener la organización');
+        return;
+      }
+      const orgData = await orgRes.json();
+      const nombre  = orgData.shortName || orgData.name || region;
+      setOrgPreview('', nombre);
+
+    } catch (e) {
+      // Backend no disponible — silencioso (no interferir con el flujo normal)
+      hideOrgPreview();
+    }
+  }
+
+  function onCredentialsChange() {
+    clearTimeout(orgDetectTimer);
+    hideOrgPreview();
+    const clientId     = document.getElementById('clientId').value.trim();
+    const clientSecret = document.getElementById('clientSecret').value.trim();
+    if (clientId && clientSecret && isValidUUID(clientId)) {
+      // Esperar 800ms después de que el usuario deje de escribir
+      orgDetectTimer = setTimeout(detectarOrg, 800);
+    }
+  }
+
+  // ─── INIT ──────────────────────────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', () => {
     const savedClientId = localStorage.getItem('gc_saved_client_id') || sessionStorage.getItem('gc_client_id');
     const savedRegion   = localStorage.getItem('gc_saved_region') || sessionStorage.getItem('gc_region');
@@ -659,11 +723,18 @@
       document.getElementById('region').value = savedRegion;
     }
 
-    // Restaurar Client ID de CC (nunca el secret)
+    // Autorellenar Client ID de CC y disparar detección si ya había valores guardados
     const savedCcId = localStorage.getItem('gc_saved_client_id_cc');
     if (savedCcId) {
       document.getElementById('clientId').value = savedCcId;
     }
+
+    // Listeners para detección automática
+    document.getElementById('clientId').addEventListener('input', onCredentialsChange);
+    document.getElementById('clientSecret').addEventListener('input', onCredentialsChange);
+    document.getElementById('region').addEventListener('change', () => {
+      if (currentMethod === 'credentials') onCredentialsChange();
+    });
   });
 </script>
 </body>
