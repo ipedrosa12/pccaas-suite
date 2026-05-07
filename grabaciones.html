@@ -564,13 +564,13 @@ async function apiRequest(endpoint) {
 }
 
 // =============================================================================
-// OBTENER RECORDING ID — proxy backend primero para evitar CORS
+// OBTENER RECORDING ID Y DESCARGAR CON BEARER TOKEN
+// Usa ?formatId=MP3 igual que la UI de Genesys — devuelve ambos canales mezclados
 // =============================================================================
 async function obtenerRecordingId(convId) {
   const region = getRegion();
   const token  = getToken();
-
-  // Ruta A: proxy backend
+  // Ruta A: proxy backend (evita CORS)
   try {
     const res = await fetch(
       `${BACKEND_URL}/recording-info?convId=${convId}&region=${encodeURIComponent(region)}&token=${encodeURIComponent(token)}`
@@ -580,22 +580,18 @@ async function obtenerRecordingId(convId) {
       if (data.recordingId) return data.recordingId;
     }
     if (res.status === 404) throw new Error('Sin grabaciones en esta conversación');
+    if (res.status === 403) throw new Error('Sin permisos para grabaciones');
   } catch (e) {
-    if (e.message.includes('Sin grabaciones')) throw e;
-    log(`Proxy no disponible para recording-info: ${e.message}`, 'warn');
+    if (e.message.includes('Sin grabaciones') || e.message.includes('Sin permisos')) throw e;
+    log(`Proxy no disponible: ${e.message}`, 'warn');
   }
-
-  // Ruta B: directo (fallback, puede fallar por CORS)
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY = 8000;
+  // Ruta B: directo (fallback)
+  const MAX_RETRIES = 3, RETRY_DELAY = 8000;
   let metas = [];
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     metas = await apiRequest(`/conversations/${convId}/recordings`);
     if (Array.isArray(metas) && metas.length > 0) break;
-    if (attempt < MAX_RETRIES) {
-      log(`Metadatos no listos. Reintentando (${attempt}/${MAX_RETRIES})...`, 'warn');
-      await sleep(RETRY_DELAY);
-    }
+    if (attempt < MAX_RETRIES) { log(`Reintentando (${attempt}/${MAX_RETRIES})...`, 'warn'); await sleep(RETRY_DELAY); }
   }
   if (!Array.isArray(metas) || metas.length === 0) throw new Error('No se encontraron metadatos de grabación');
   for (const meta of metas) { if (meta.id) return meta.id; }
@@ -768,9 +764,7 @@ function writeString(view, offset, str) {
 }
 
 // =============================================================================
-// PROCESAR UNA GRABACIÓN
-// recordingId puede venir pre-obtenido del paso de verificación para evitar
-// un segundo fetch que fallaría por CORS desde GitHub Pages.
+// PROCESAR UNA GRABACIÓN (decide descarga directa o mezcla)
 // =============================================================================
 async function procesarGrabacion(convId, details, fileName, i, total, recordingIdPreObtained) {
   let recordingId = recordingIdPreObtained;
@@ -823,18 +817,16 @@ async function procesar() {
       let hasRecording = false;
       let recordingId  = null;
 
-      // ── Intento 1: analytics directo (falla por CORS desde GitHub Pages) ───
+      // ── Intento 1: analytics directo ────────────────────────────────────────
       try {
         details = await apiRequest(`/analytics/conversations/${convId}/details`);
-        hasRecording = details.participants?.some(p =>
-          p.sessions?.some(s => s.recording === true)
-        );
+        hasRecording = details.participants?.some(p => p.sessions?.some(s => s.recording === true));
         if (hasRecording) log(`[${i+1}/${ids.length}] Grabación confirmada vía analytics.`, 'ok');
       } catch (e) {
         log(`[${i+1}/${ids.length}] Analytics bloqueado (CORS) — usando proxy...`, 'warn');
       }
 
-      // ── Intento 2: /recording-info via proxy (evita CORS, devuelve recordingId) ──
+      // ── Intento 2: /recording-info via proxy ────────────────────────────────
       if (!hasRecording) {
         const region = getRegion();
         const token  = getToken();
@@ -850,17 +842,21 @@ async function procesar() {
               log(`[${i+1}/${ids.length}] Grabación confirmada vía proxy.`, 'ok');
             }
           } else if (proxyRes.status === 404) {
-            hasRecording = false;
+            const errData = await proxyRes.json().catch(() => ({}));
+            log(`[${i+1}/${ids.length}] Sin grabación: ${errData.error || 'no encontrada'}.`, 'warn');
+          } else if (proxyRes.status === 403) {
+            log(`[${i+1}/${ids.length}] Sin permisos de grabación.`, 'warn');
           } else {
-            log(`[${i+1}/${ids.length}] Proxy respondió ${proxyRes.status}.`, 'warn');
+            const errData = await proxyRes.json().catch(() => ({}));
+            log(`[${i+1}/${ids.length}] Error proxy (${proxyRes.status}): ${errData.error || 'desconocido'}.`, 'warn');
           }
         } catch (e2) {
-          log(`[${i+1}/${ids.length}] Proxy no disponible — inicia server.js.`, 'warn');
+          log(`[${i+1}/${ids.length}] Proxy no disponible: ${e2.message}.`, 'warn');
         }
       }
 
-      // ── Si hay grabación pero details es null, obtener detalles vía proxy ──
-      // (necesario para construir el nombre del archivo con ANI/DNIS real)
+      // ── Si hay grabación pero details es null, obtener ANI/fecha vía proxy ──
+      // Esto es crítico para que buildFileName tenga el número correcto
       if (hasRecording && !details) {
         const region = getRegion();
         const token  = getToken();
@@ -870,27 +866,26 @@ async function procesar() {
           );
           if (convRes.ok) {
             details = await convRes.json();
-            log(`[${i+1}/${ids.length}] Detalles de conversación obtenidos (ani: ${details.ani}).`, 'ok');
+            log(`[${i+1}/${ids.length}] ANI: ${details.ani}.`, 'ok');
           }
         } catch (_) {
-          log(`[${i+1}/${ids.length}] No se pudieron obtener detalles. Nombre de archivo sin teléfono.`, 'warn');
+          log(`[${i+1}/${ids.length}] No se pudo obtener ANI.`, 'warn');
         }
       }
 
       if (!hasRecording) {
         log(`[${i+1}/${ids.length}] Sin grabación confirmada.`, 'fail');
         noRecCount++;
-        if (currentMode === 'listado') {
-          addTableRow(i+1, convId, details, null, 'sin-grabacion');
-        }
+        if (currentMode === 'listado') addTableRow(i+1, convId, details, null, 'sin-grabacion');
         continue;
       }
 
+      // fileName se construye DESPUÉS de tener details con ANI correcto
       const fileName = buildFileName(convId, details || {});
 
       if (currentMode === 'listado') {
         addTableRow(i+1, convId, details, { fileName, convId, recordingId }, 'ok');
-        log(`[${i+1}/${ids.length}] ✓ Grabación disponible.`, 'ok');
+        log(`[${i+1}/${ids.length}] ✓ Grabación disponible: ${fileName}`, 'ok');
         okCount++;
       } else {
         await procesarGrabacion(convId, details, fileName, i, ids.length, recordingId);
@@ -932,14 +927,25 @@ function buildFileName(convId, data) {
   const date = new Date(startDate);
   const dateStr = `${String(date.getDate()).padStart(2,'0')}_${String(date.getMonth()+1).padStart(2,'0')}_${date.getFullYear()}`;
   let phone = '0000000000';
-  if (data?.participants) {
+
+  // Ruta A: viene de /conv/details — ani directo en el objeto raíz
+  if (data?.ani && data.ani !== '0000000000') {
+    phone = String(data.ani).replace(/\D/g, '').slice(-10);
+  }
+  // Ruta B: viene de analytics — participants[].sessions[]
+  else if (data?.participants) {
     for (const p of data.participants) {
       for (const s of p.sessions || []) {
-        if (s.ani && s.ani !== 'unknown') phone = String(s.ani).replace(/\D/g, '').slice(-10);
-        if (s.dnis && s.dnis !== 'unknown' && phone === '0000000000') phone = String(s.dnis).replace(/\D/g, '').slice(-10);
+        if (s.ani && s.ani !== 'unknown' && phone === '0000000000') {
+          phone = String(s.ani).replace(/\D/g, '').slice(-10);
+        }
+        if (s.dnis && s.dnis !== 'unknown' && phone === '0000000000') {
+          phone = String(s.dnis).replace(/\D/g, '').slice(-10);
+        }
       }
     }
   }
+
   if (phone.length < 10) phone = phone.padStart(10, '0');
   return `${dateStr}_${phone}_${convId}`;
 }
@@ -1003,19 +1009,14 @@ window.descargarCompleto = async function(dataEnc, btn) {
   btn.disabled = true;
   btn.textContent = '⏳ Procesando...';
   try {
+    // El fileName ya viene correcto desde el payload (construido con ANI de /conv/details)
+    const fileName = data.fileName;
     let details = null;
-    try {
-      details = await apiRequest(`/analytics/conversations/${data.convId}/details`);
-    } catch(e) {}
-    const fileName = data.fileName || buildFileName(data.convId, details || {});
+    try { details = await apiRequest(`/analytics/conversations/${data.convId}/details`); } catch(e) {}
     await procesarGrabacion(data.convId, details, fileName, 0, 1, data.recordingId || null);
     btn.textContent = '✓ OK';
     btn.style.background = 'rgba(0,229,160,0.2)';
-    setTimeout(() => {
-      btn.textContent = '⬇ Descargar audio completo';
-      btn.style.background = '';
-      btn.disabled = false;
-    }, 3000);
+    setTimeout(() => { btn.textContent = '⬇ Descargar audio completo'; btn.style.background = ''; btn.disabled = false; }, 3000);
   } catch (err) {
     btn.disabled = false;
     btn.textContent = '⬇ Reintentar';
