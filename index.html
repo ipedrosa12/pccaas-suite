@@ -576,8 +576,8 @@
   }
 
   // ── CLIENT CREDENTIALS ─────────────────────────────────────────────────────
-  // Llama al backend proxy /auth/token para intercambiar credenciales sin
-  // exponer el clientSecret al browser ni pasar por Genesys directamente (CORS).
+  // Usa el backend proxy para: 1) intercambiar credenciales, 2) obtener nombre de org.
+  // El secret NUNCA llega al browser ni a Genesys directamente (CORS).
   async function handleClientCredentials(region) {
     const clientId     = document.getElementById('clientId').value.trim();
     const clientSecret = document.getElementById('clientSecret').value.trim();
@@ -596,20 +596,18 @@
     btn.disabled = true;
 
     try {
-      // 1. Pedir token al backend proxy
+      // 1. Obtener token vía proxy backend
       const authRes = await fetch('http://localhost:3000/auth/token', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ clientId, clientSecret, region })
       });
-
       const authData = await authRes.json();
-
       if (!authRes.ok) {
         throw new Error(authData.error_description || authData.error || `Error ${authRes.status}`);
       }
 
-      // 2. Guardar token en sessionStorage (misma estructura que Implicit Grant)
+      // 2. Guardar token (misma estructura que Implicit Grant)
       const expiresAt = Date.now() + (parseInt(authData.expires_in || 86400) * 1000);
       sessionStorage.setItem('gc_access_token',  authData.access_token);
       sessionStorage.setItem('gc_token_expires', expiresAt.toString());
@@ -621,20 +619,16 @@
       localStorage.setItem('gc_saved_client_id_cc', clientId);
       localStorage.setItem('gc_saved_region',        region);
 
-      // 3. Obtener nombre real de la organización via /organizations/me
+      // 3. Obtener nombre real de la org vía proxy (evita CORS desde GitHub Pages)
       try {
-        const orgRes  = await fetch(`https://api.${region}/api/v2/organizations/me`, {
-          headers: { 'Authorization': `Bearer ${authData.access_token}` }
-        });
+        const orgRes  = await fetch(`http://localhost:3000/org/me?token=${encodeURIComponent(authData.access_token)}&region=${region}`);
         const orgData = await orgRes.json();
         sessionStorage.setItem('gc_org_name',  orgData.name      || orgData.shortName || region);
         sessionStorage.setItem('gc_org_short', orgData.shortName || orgData.name      || region);
-        sessionStorage.setItem('gc_user_name', 'Sistema');
       } catch (_) {
-        // CORS puede bloquearlo desde GitHub Pages; no es crítico
-        sessionStorage.setItem('gc_org_name',  region);
-        sessionStorage.setItem('gc_user_name', 'Sistema');
+        sessionStorage.setItem('gc_org_name', region);
       }
+      sessionStorage.setItem('gc_user_name', 'Sistema');
 
       // 4. Redirigir al dashboard
       window.location.href = 'app.html';
