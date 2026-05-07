@@ -807,13 +807,31 @@ async function procesar() {
       let details = null;
       let hasRecording = false;
       
+      // Intento 1: analytics/details (falla por CORS desde GitHub Pages en algunas regiones)
       try {
         details = await apiRequest(`/analytics/conversations/${convId}/details`);
         hasRecording = details.participants?.some(p => 
           p.sessions?.some(s => s.recording === true)
         );
+        if (hasRecording) {
+          log(`[${i+1}/${ids.length}] Grabación confirmada vía analytics.`, 'ok');
+        }
       } catch (e) {
-        log(`[${i+1}/${ids.length}] Error en analytics: ${e.message}`, 'warn');
+        log(`[${i+1}/${ids.length}] Analytics no disponible (${e.message}) — verificando vía recordings...`, 'warn');
+      }
+
+      // Intento 2: si analytics falló o no confirmó grabación, consultar /recordings directamente
+      if (!hasRecording) {
+        try {
+          const recs = await apiRequest(`/conversations/${convId}/recordings`);
+          const arr  = Array.isArray(recs) ? recs : (recs.entities || []);
+          hasRecording = arr.length > 0 && arr.some(r => r.id);
+          if (hasRecording) {
+            log(`[${i+1}/${ids.length}] Grabación confirmada vía /recordings.`, 'ok');
+          }
+        } catch (e2) {
+          log(`[${i+1}/${ids.length}] Error verificando /recordings: ${e2.message}`, 'warn');
+        }
       }
 
       if (!hasRecording) {
