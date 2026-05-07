@@ -806,31 +806,49 @@ async function procesar() {
     try {
       let details = null;
       let hasRecording = false;
-      
-      // Intento 1: analytics/details (falla por CORS desde GitHub Pages en algunas regiones)
+
+      // ── Intento 1: analytics/details (falla por CORS desde GitHub Pages) ──
       try {
         details = await apiRequest(`/analytics/conversations/${convId}/details`);
-        hasRecording = details.participants?.some(p => 
+        hasRecording = details.participants?.some(p =>
           p.sessions?.some(s => s.recording === true)
         );
         if (hasRecording) {
           log(`[${i+1}/${ids.length}] Grabación confirmada vía analytics.`, 'ok');
         }
       } catch (e) {
-        log(`[${i+1}/${ids.length}] Analytics no disponible (${e.message}) — verificando vía recordings...`, 'warn');
+        log(`[${i+1}/${ids.length}] Analytics bloqueado por CORS — usando proxy...`, 'warn');
       }
 
-      // Intento 2: si analytics falló o no confirmó grabación, consultar /recordings directamente
+      // ── Intento 2: /recording-info via backend proxy (sin CORS) ────────────
       if (!hasRecording) {
+        const region = getRegion();
+        const token  = getToken();
         try {
-          const recs = await apiRequest(`/conversations/${convId}/recordings`);
-          const arr  = Array.isArray(recs) ? recs : (recs.entities || []);
-          hasRecording = arr.length > 0 && arr.some(r => r.id);
-          if (hasRecording) {
-            log(`[${i+1}/${ids.length}] Grabación confirmada vía /recordings.`, 'ok');
+          const proxyRes = await fetch(
+            `${BACKEND_URL}/recording-info?convId=${convId}&region=${encodeURIComponent(region)}&token=${encodeURIComponent(token)}`
+          );
+          if (proxyRes.ok) {
+            const proxyData = await proxyRes.json();
+            if (proxyData.recordingId) {
+              hasRecording = true;
+              log(`[${i+1}/${ids.length}] Grabación confirmada vía proxy (recordingId: ${proxyData.recordingId.substring(0,8)}...).`, 'ok');
+            }
+          } else if (proxyRes.status === 404) {
+            // 404 explícito = sin grabación real
+            hasRecording = false;
+          } else {
+            throw new Error(`Proxy respondió ${proxyRes.status}`);
           }
         } catch (e2) {
-          log(`[${i+1}/${ids.length}] Error verificando /recordings: ${e2.message}`, 'warn');
+          log(`[${i+1}/${ids.length}] Proxy no disponible: ${e2.message}. Iniciando server.js.`, 'warn');
+          // Si el proxy tampoco responde, intentar /recordings directo como último recurso
+          try {
+            const recs = await apiRequest(`/conversations/${convId}/recordings`);
+            const arr  = Array.isArray(recs) ? recs : (recs.entities || []);
+            hasRecording = arr.length > 0 && arr.some(r => r.id);
+            if (hasRecording) log(`[${i+1}/${ids.length}] Grabación confirmada vía /recordings directo.`, 'ok');
+          } catch (_) { /* sin grabación confirmada */ }
         }
       }
 
