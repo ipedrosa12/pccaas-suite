@@ -357,7 +357,7 @@
       50% { opacity: 0.4; }
     }
 
-    /* ── Org preview ───────────────────────────────────────────────── */
+    /* ── Org preview ─────────────────────────────────────────────── */
     .org-preview {
       display: none;
       align-items: center;
@@ -367,24 +367,17 @@
       border: 1px solid rgba(0,229,160,0.2);
       border-radius: 8px;
       margin-top: 4px;
-      animation: previewIn 0.3s ease;
     }
-    @keyframes previewIn {
-      from { opacity:0; transform:translateY(-4px); }
-      to   { opacity:1; transform:translateY(0); }
-    }
-    .org-preview.visible   { display: flex; }
-    .org-preview.checking  { background: rgba(255,95,0,0.05); border-color: rgba(255,95,0,0.2); }
-    .org-preview.error     { background: rgba(255,60,60,0.05); border-color: rgba(255,60,60,0.15); }
+    .org-preview.visible  { display: flex; animation: orgIn 0.3s ease; }
+    @keyframes orgIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+    .org-preview.checking { background: rgba(255,95,0,0.05); border-color: rgba(255,95,0,0.2); }
+    .org-preview.error    { background: rgba(255,60,60,0.05); border-color: rgba(255,60,60,0.15); }
     .org-dot {
       width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
       background: var(--green); box-shadow: 0 0 6px var(--green);
     }
-    .org-preview.checking .org-dot {
-      background: var(--orange); box-shadow: 0 0 6px var(--orange);
-      animation: pulse 0.8s ease-in-out infinite;
-    }
-    .org-preview.error .org-dot { background: #ff4f4f; box-shadow: 0 0 6px #ff4f4f; }
+    .org-preview.checking .org-dot { background: var(--orange); box-shadow: 0 0 6px var(--orange); animation: pulse 0.8s ease-in-out infinite; }
+    .org-preview.error    .org-dot { background: #ff4f4f; box-shadow: 0 0 6px #ff4f4f; animation: none; }
     .org-name { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--green); letter-spacing: 0.04em; }
     .org-preview.checking .org-name { color: var(--orange); }
     .org-preview.error    .org-name { color: #ff7070; }
@@ -457,10 +450,10 @@
         <input type="password" id="clientSecret" placeholder="••••••••••••••••••••••••">
       </div>
 
-      <!-- Detección automática de organización -->
+      <!-- Preview automático del nombre de la organización -->
       <div class="org-preview" id="orgPreview">
         <div class="org-dot"></div>
-        <span class="org-name" id="orgPreviewName">Verificando...</span>
+        <span class="org-name" id="orgPreviewName"></span>
       </div>
     </div>
 
@@ -641,15 +634,13 @@
 
   // Restaurar Client ID si ya fue ingresado antes
   // ─── DETECCIÓN AUTOMÁTICA DE ORGANIZACIÓN ─────────────────────────────────
-  // Cuando Client ID + Secret están llenos, obtiene el token y muestra el
-  // nombre de la org debajo del campo Secret, antes de hacer clic en INGRESAR.
-  let orgDetectTimer = null;
+  let orgTimer = null;
 
   function setOrgPreview(state, text) {
-    const el   = document.getElementById('orgPreview');
+    const wrap = document.getElementById('orgPreview');
     const name = document.getElementById('orgPreviewName');
-    el.className   = `org-preview visible ${state}`;
-    name.textContent = text;
+    wrap.className      = `org-preview visible ${state}`;
+    name.textContent    = text;
   }
 
   function hideOrgPreview() {
@@ -669,45 +660,46 @@
     setOrgPreview('checking', 'Verificando organización...');
 
     try {
-      // 1. Obtener token
       const authRes = await fetch('http://localhost:3000/auth/token', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ clientId, clientSecret, region })
+        body: JSON.stringify({ clientId, clientSecret, region })
       });
+
       if (!authRes.ok) {
         const err = await authRes.json().catch(() => ({}));
         setOrgPreview('error', err.error_description || 'Credenciales inválidas');
         return;
       }
+
       const { access_token } = await authRes.json();
 
-      // 2. Obtener nombre de la org
       const orgRes = await fetch(
         `http://localhost:3000/org/me?token=${encodeURIComponent(access_token)}&region=${region}`
       );
+
       if (!orgRes.ok) {
         setOrgPreview('error', 'No se pudo obtener la organización');
         return;
       }
+
       const orgData = await orgRes.json();
       const nombre  = orgData.shortName || orgData.name || region;
       setOrgPreview('', nombre);
 
-    } catch (e) {
-      // Backend no disponible — silencioso (no interferir con el flujo normal)
+    } catch (_) {
+      // Backend no disponible — no mostrar nada, no interrumpir
       hideOrgPreview();
     }
   }
 
-  function onCredentialsChange() {
-    clearTimeout(orgDetectTimer);
+  function onCredentialsInput() {
+    clearTimeout(orgTimer);
     hideOrgPreview();
     const clientId     = document.getElementById('clientId').value.trim();
     const clientSecret = document.getElementById('clientSecret').value.trim();
     if (clientId && clientSecret && isValidUUID(clientId)) {
-      // Esperar 800ms después de que el usuario deje de escribir
-      orgDetectTimer = setTimeout(detectarOrg, 800);
+      orgTimer = setTimeout(detectarOrg, 800);
     }
   }
 
@@ -716,24 +708,14 @@
     const savedClientId = localStorage.getItem('gc_saved_client_id') || sessionStorage.getItem('gc_client_id');
     const savedRegion   = localStorage.getItem('gc_saved_region') || sessionStorage.getItem('gc_region');
 
-    if (savedClientId) {
-      document.getElementById('implicitClientId').value = savedClientId;
-    }
-    if (savedRegion) {
-      document.getElementById('region').value = savedRegion;
-    }
+    if (savedClientId) document.getElementById('implicitClientId').value = savedClientId;
+    if (savedRegion)   document.getElementById('region').value = savedRegion;
 
-    // Autorellenar Client ID de CC y disparar detección si ya había valores guardados
-    const savedCcId = localStorage.getItem('gc_saved_client_id_cc');
-    if (savedCcId) {
-      document.getElementById('clientId').value = savedCcId;
-    }
-
-    // Listeners para detección automática
-    document.getElementById('clientId').addEventListener('input', onCredentialsChange);
-    document.getElementById('clientSecret').addEventListener('input', onCredentialsChange);
+    // Listeners para detección automática de org
+    document.getElementById('clientId').addEventListener('input', onCredentialsInput);
+    document.getElementById('clientSecret').addEventListener('input', onCredentialsInput);
     document.getElementById('region').addEventListener('change', () => {
-      if (currentMethod === 'credentials') onCredentialsChange();
+      if (currentMethod === 'credentials') onCredentialsInput();
     });
   });
 </script>
