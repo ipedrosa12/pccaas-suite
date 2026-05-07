@@ -564,10 +564,28 @@ async function apiRequest(endpoint) {
 }
 
 // =============================================================================
-// OBTENER RECORDING ID Y DESCARGAR CON BEARER TOKEN
-// Usa ?formatId=MP3 igual que la UI de Genesys — devuelve ambos canales mezclados
+// OBTENER RECORDING ID — usa proxy backend para evitar CORS
 // =============================================================================
 async function obtenerRecordingId(convId) {
+  const region = getRegion();
+  const token  = getToken();
+
+  // Ruta A: proxy backend (sin CORS, siempre preferida)
+  try {
+    const res = await fetch(
+      `${BACKEND_URL}/recording-info?convId=${convId}&region=${encodeURIComponent(region)}&token=${encodeURIComponent(token)}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.recordingId) return data.recordingId;
+    }
+    if (res.status === 404) throw new Error('Sin grabaciones en esta conversación');
+  } catch (e) {
+    if (e.message.includes('Sin grabaciones')) throw e;
+    log(`Proxy no disponible para recording-info: ${e.message}`, 'warn');
+  }
+
+  // Ruta B: directo al browser (fallback, puede fallar por CORS)
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 8000;
   let metas = [];
@@ -585,7 +603,6 @@ async function obtenerRecordingId(convId) {
     throw new Error('No se encontraron metadatos de grabación');
   }
 
-  // Tomar el primer recordingId válido
   for (const meta of metas) {
     if (meta.id) return meta.id;
   }
@@ -759,11 +776,16 @@ function writeString(view, offset, str) {
 
 // =============================================================================
 // PROCESAR UNA GRABACIÓN (decide descarga directa o mezcla)
+// recordingId puede venir pre-obtenido del paso de verificación para evitar
+// una segunda llamada a Genesys (que fallaría por CORS en GitHub Pages).
 // =============================================================================
-async function procesarGrabacion(convId, details, fileName, i, total) {
-  log(`[${i+1}/${total}] Obteniendo ID de grabación...`, 'info');
-  const recordingId = await obtenerRecordingId(convId);
-  log(`[${i+1}/${total}] Recording ID: ${recordingId}`, 'info');
+async function procesarGrabacion(convId, details, fileName, i, total, recordingIdPreObtained) {
+  let recordingId = recordingIdPreObtained;
+  if (!recordingId) {
+    log(`[${i+1}/${total}] Obteniendo ID de grabación...`, 'info');
+    recordingId = await obtenerRecordingId(convId);
+  }
+  log(`[${i+1}/${total}] Recording ID: ${recordingId.substring(0,8)}...`, 'info');
   const ext = await descargarConBearer(convId, recordingId, fileName);
   log(`[${i+1}/${total}] ✓ Descargado como ${fileName}.${ext}`, 'ok');
   return true;
@@ -804,8 +826,9 @@ async function procesar() {
     log(`[${i+1}/${ids.length}] ${convId} — verificando grabación...`);
 
     try {
-      let details = null;
+      let details      = null;
       let hasRecording = false;
+      let recordingId  = null;   // guardamos el ID ya obtenido para no re-fetchear
 
       // ── Intento 1: analytics directo (funciona si no hay CORS) ─────────────
       try {
@@ -818,7 +841,7 @@ async function procesar() {
         log(`[${i+1}/${ids.length}] Analytics bloqueado (CORS) — usando proxy...`, 'warn');
       }
 
-      // ── Intento 2: /recording-info via backend proxy (evita CORS) ──────────
+      // ── Intento 2: /recording-info via proxy (evita CORS, devuelve recordingId) ──
       if (!hasRecording) {
         const region = getRegion();
         const token  = getToken();
@@ -830,10 +853,11 @@ async function procesar() {
             const proxyData = await proxyRes.json();
             if (proxyData.recordingId) {
               hasRecording = true;
+              recordingId  = proxyData.recordingId;   // ← guardamos para reutilizar
               log(`[${i+1}/${ids.length}] Grabación confirmada vía proxy.`, 'ok');
             }
           } else if (proxyRes.status === 404) {
-            hasRecording = false; // 404 = sin grabación confirmada por Genesys
+            hasRecording = false;
           } else {
             log(`[${i+1}/${ids.length}] Proxy respondió ${proxyRes.status}.`, 'warn');
           }
@@ -854,11 +878,13 @@ async function procesar() {
       const fileName = buildFileName(convId, details || {});
 
       if (currentMode === 'listado') {
-        addTableRow(i+1, convId, details, { fileName, convId }, 'ok');
+        // Pasamos recordingId para que el botón de descarga no tenga que buscarlo de nuevo
+        addTableRow(i+1, convId, details, { fileName, convId, recordingId }, 'ok');
         log(`[${i+1}/${ids.length}] ✓ Grabación disponible.`, 'ok');
         okCount++;
       } else {
-        await procesarGrabacion(convId, details, fileName, i, ids.length);
+        // Pasamos recordingId pre-obtenido para evitar segundo fetch (CORS)
+        await procesarGrabacion(convId, details, fileName, i, ids.length, recordingId);
         okCount++;
         await sleep(3000);
       }
@@ -937,7 +963,12 @@ function addTableRow(num, convId, details, downloadData, statusType) {
   
   if (statusType === 'ok' && downloadData) {
     statusHtml = '<span style="color:var(--green)">✓ GRABACIÓN</span>';
-    const dataEnc = encodeURIComponent(JSON.stringify({ fileName: downloadData.fileName, convId: downloadData.convId }));
+    // Incluimos recordingId en el payload para no tener que buscarlo al descargar
+    const dataEnc = encodeURIComponent(JSON.stringify({
+      fileName:    downloadData.fileName,
+      convId:      downloadData.convId,
+      recordingId: downloadData.recordingId || null
+    }));
     accionesHtml = `<button class="btn-download" onclick="descargarCompleto('${dataEnc}', this)">⬇ Descargar audio completo</button>`;
     recordingsList.push(downloadData);
   } else if (statusType === 'sin-grabacion') {
@@ -969,7 +1000,8 @@ window.descargarCompleto = async function(dataEnc, btn) {
       details = await apiRequest(`/analytics/conversations/${data.convId}/details`);
     } catch(e) {}
     const fileName = data.fileName || buildFileName(data.convId, details || {});
-    await procesarGrabacion(data.convId, details, fileName, 0, 1);
+    // Pasar recordingId pre-obtenido para evitar fetch adicional con CORS
+    await procesarGrabacion(data.convId, details, fileName, 0, 1, data.recordingId || null);
     btn.textContent = '✓ OK';
     btn.style.background = 'rgba(0,229,160,0.2)';
     setTimeout(() => {
