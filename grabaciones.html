@@ -564,13 +564,13 @@ async function apiRequest(endpoint) {
 }
 
 // =============================================================================
-// OBTENER RECORDING ID — usa proxy backend para evitar CORS
+// OBTENER RECORDING ID — proxy backend primero para evitar CORS
 // =============================================================================
 async function obtenerRecordingId(convId) {
   const region = getRegion();
   const token  = getToken();
 
-  // Ruta A: proxy backend (sin CORS, siempre preferida)
+  // Ruta A: proxy backend
   try {
     const res = await fetch(
       `${BACKEND_URL}/recording-info?convId=${convId}&region=${encodeURIComponent(region)}&token=${encodeURIComponent(token)}`
@@ -585,11 +585,10 @@ async function obtenerRecordingId(convId) {
     log(`Proxy no disponible para recording-info: ${e.message}`, 'warn');
   }
 
-  // Ruta B: directo al browser (fallback, puede fallar por CORS)
+  // Ruta B: directo (fallback, puede fallar por CORS)
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 8000;
   let metas = [];
-
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     metas = await apiRequest(`/conversations/${convId}/recordings`);
     if (Array.isArray(metas) && metas.length > 0) break;
@@ -598,14 +597,8 @@ async function obtenerRecordingId(convId) {
       await sleep(RETRY_DELAY);
     }
   }
-
-  if (!Array.isArray(metas) || metas.length === 0) {
-    throw new Error('No se encontraron metadatos de grabación');
-  }
-
-  for (const meta of metas) {
-    if (meta.id) return meta.id;
-  }
+  if (!Array.isArray(metas) || metas.length === 0) throw new Error('No se encontraron metadatos de grabación');
+  for (const meta of metas) { if (meta.id) return meta.id; }
   throw new Error('No se encontró un ID de grabación válido');
 }
 
@@ -775,9 +768,9 @@ function writeString(view, offset, str) {
 }
 
 // =============================================================================
-// PROCESAR UNA GRABACIÓN (decide descarga directa o mezcla)
+// PROCESAR UNA GRABACIÓN
 // recordingId puede venir pre-obtenido del paso de verificación para evitar
-// una segunda llamada a Genesys (que fallaría por CORS en GitHub Pages).
+// un segundo fetch que fallaría por CORS desde GitHub Pages.
 // =============================================================================
 async function procesarGrabacion(convId, details, fileName, i, total, recordingIdPreObtained) {
   let recordingId = recordingIdPreObtained;
@@ -828,9 +821,9 @@ async function procesar() {
     try {
       let details      = null;
       let hasRecording = false;
-      let recordingId  = null;   // guardamos el ID ya obtenido para no re-fetchear
+      let recordingId  = null;
 
-      // ── Intento 1: analytics directo (funciona si no hay CORS) ─────────────
+      // ── Intento 1: analytics directo (falla por CORS desde GitHub Pages) ───
       try {
         details = await apiRequest(`/analytics/conversations/${convId}/details`);
         hasRecording = details.participants?.some(p =>
@@ -853,7 +846,7 @@ async function procesar() {
             const proxyData = await proxyRes.json();
             if (proxyData.recordingId) {
               hasRecording = true;
-              recordingId  = proxyData.recordingId;   // ← guardamos para reutilizar
+              recordingId  = proxyData.recordingId;
               log(`[${i+1}/${ids.length}] Grabación confirmada vía proxy.`, 'ok');
             }
           } else if (proxyRes.status === 404) {
@@ -863,6 +856,24 @@ async function procesar() {
           }
         } catch (e2) {
           log(`[${i+1}/${ids.length}] Proxy no disponible — inicia server.js.`, 'warn');
+        }
+      }
+
+      // ── Si hay grabación pero details es null, obtener detalles vía proxy ──
+      // (necesario para construir el nombre del archivo con ANI/DNIS real)
+      if (hasRecording && !details) {
+        const region = getRegion();
+        const token  = getToken();
+        try {
+          const convRes = await fetch(
+            `${BACKEND_URL}/conv/details?convId=${convId}&region=${encodeURIComponent(region)}&token=${encodeURIComponent(token)}`
+          );
+          if (convRes.ok) {
+            details = await convRes.json();
+            log(`[${i+1}/${ids.length}] Detalles de conversación obtenidos (ani: ${details.ani}).`, 'ok');
+          }
+        } catch (_) {
+          log(`[${i+1}/${ids.length}] No se pudieron obtener detalles. Nombre de archivo sin teléfono.`, 'warn');
         }
       }
 
@@ -878,12 +889,10 @@ async function procesar() {
       const fileName = buildFileName(convId, details || {});
 
       if (currentMode === 'listado') {
-        // Pasamos recordingId para que el botón de descarga no tenga que buscarlo de nuevo
         addTableRow(i+1, convId, details, { fileName, convId, recordingId }, 'ok');
         log(`[${i+1}/${ids.length}] ✓ Grabación disponible.`, 'ok');
         okCount++;
       } else {
-        // Pasamos recordingId pre-obtenido para evitar segundo fetch (CORS)
         await procesarGrabacion(convId, details, fileName, i, ids.length, recordingId);
         okCount++;
         await sleep(3000);
@@ -963,7 +972,6 @@ function addTableRow(num, convId, details, downloadData, statusType) {
   
   if (statusType === 'ok' && downloadData) {
     statusHtml = '<span style="color:var(--green)">✓ GRABACIÓN</span>';
-    // Incluimos recordingId en el payload para no tener que buscarlo al descargar
     const dataEnc = encodeURIComponent(JSON.stringify({
       fileName:    downloadData.fileName,
       convId:      downloadData.convId,
@@ -1000,7 +1008,6 @@ window.descargarCompleto = async function(dataEnc, btn) {
       details = await apiRequest(`/analytics/conversations/${data.convId}/details`);
     } catch(e) {}
     const fileName = data.fileName || buildFileName(data.convId, details || {});
-    // Pasar recordingId pre-obtenido para evitar fetch adicional con CORS
     await procesarGrabacion(data.convId, details, fileName, 0, 1, data.recordingId || null);
     btn.textContent = '✓ OK';
     btn.style.background = 'rgba(0,229,160,0.2)';
